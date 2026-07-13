@@ -10,6 +10,11 @@
   - Red result: Failed as expected because `SleepyStore` was not in scope.
   - Green result: Passed; 3 tests, 0 failures.
   - Device: iPhone 17 Pro simulator (iOS 26.5).
+- `xcodebuild test -scheme Sleepy -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:SleepyTests/ShieldClientTests`
+  - Red result: Failed as expected because `ShieldClient` was not in scope.
+  - Green result: Passed; 1 test, 0 failures.
+  - Device: iPhone 17 Pro simulator (iOS 26.5).
+  - Note: Simulator clear initially reached `ManagedSettingsStore` and logged an unavailable-agent warning. The boundary was narrowed so Simulator uses mock state only; the rerun passed without that warning.
 
 ## Simulator
 

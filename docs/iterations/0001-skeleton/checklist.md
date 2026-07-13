@@ -2,8 +2,8 @@
 
 - [x] App builds in Simulator.
 - [x] Core store tests pass.
-- [ ] Mock shield tests pass.
+- [x] Mock shield tests pass.
 - [ ] Setup can reach Home.
 - [ ] Brush -> Sleep -> Summary flow works.
 - [ ] Notification scheduling code compiles.
-- [ ] Real shield boundary compiles.
+- [x] Real shield boundary compiles.
