@@ -1,0 +1,200 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000001 /* SleepyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* SleepyApp.swift */; };
+		100000000000000000000002 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* RootView.swift */; };
+		100000000000000000000003 /* SleepyStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* SleepyStoreTests.swift */; };
+		100000000000000000000004 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* Models.swift */; };
+		100000000000000000000005 /* SleepyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000007 /* SleepyStore.swift */; };
+		100000000000000000000006 /* ShieldClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000008 /* ShieldClientTests.swift */; };
+		100000000000000000000007 /* ShieldClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000009 /* ShieldClient.swift */; };
+		100000000000000000000008 /* NotificationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000A /* NotificationClient.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		300000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 400000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 500000000000000000000001;
+			remoteInfo = Sleepy;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		200000000000000000000001 /* SleepyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepyApp.swift; sourceTree = "<group>"; };
+		200000000000000000000002 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		200000000000000000000003 /* SleepyStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepyStoreTests.swift; sourceTree = "<group>"; };
+		200000000000000000000004 /* Sleepy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sleepy.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000005 /* SleepyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SleepyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000006 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		200000000000000000000007 /* SleepyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepyStore.swift; sourceTree = "<group>"; };
+		200000000000000000000008 /* ShieldClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldClientTests.swift; sourceTree = "<group>"; };
+		200000000000000000000009 /* ShieldClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldClient.swift; sourceTree = "<group>"; };
+		20000000000000000000000A /* NotificationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationClient.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		600000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		600000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		700000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				700000000000000000000002 /* Sleepy */,
+				700000000000000000000003 /* SleepyTests */,
+				700000000000000000000004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		700000000000000000000002 /* Sleepy */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000001 /* SleepyApp.swift */,
+				200000000000000000000002 /* RootView.swift */,
+				200000000000000000000006 /* Models.swift */,
+				200000000000000000000007 /* SleepyStore.swift */,
+				200000000000000000000009 /* ShieldClient.swift */,
+				20000000000000000000000A /* NotificationClient.swift */,
+			);
+			path = Sleepy;
+			sourceTree = "<group>";
+		};
+		700000000000000000000003 /* SleepyTests */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000003 /* SleepyStoreTests.swift */,
+				200000000000000000000008 /* ShieldClientTests.swift */,
+			);
+			path = SleepyTests;
+			sourceTree = "<group>";
+		};
+		700000000000000000000004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000004 /* Sleepy.app */,
+				200000000000000000000005 /* SleepyTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		500000000000000000000001 /* Sleepy */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 800000000000000000000001 /* Build configuration list for PBXNativeTarget "Sleepy" */;
+			buildPhases = (
+				900000000000000000000001 /* Sources */,
+				600000000000000000000001 /* Frameworks */,
+				A00000000000000000000001 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = Sleepy;
+			productName = Sleepy;
+			productReference = 200000000000000000000004 /* Sleepy.app */;
+			productType = "com.apple.product-type.application";
+		};
+		500000000000000000000002 /* SleepyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 800000000000000000000002 /* Build configuration list for PBXNativeTarget "SleepyTests" */;
+			buildPhases = (
+				900000000000000000000002 /* Sources */,
+				600000000000000000000002 /* Frameworks */,
+				A00000000000000000000002 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (B00000000000000000000001 /* PBXTargetDependency */);
+			name = SleepyTests;
+			productName = SleepyTests;
+			productReference = 200000000000000000000005 /* SleepyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		400000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					500000000000000000000001 = {CreatedOnToolsVersion = 26.6; };
+					500000000000000000000002 = {CreatedOnToolsVersion = 26.6; TestTargetID = 500000000000000000000001; };
+				};
+			};
+			buildConfigurationList = 800000000000000000000003 /* Build configuration list for PBXProject "Sleepy" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = 700000000000000000000001;
+			productRefGroup = 700000000000000000000004 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				500000000000000000000001 /* Sleepy */,
+				500000000000000000000002 /* SleepyTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000001 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A00000000000000000000002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		900000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000001 /* SleepyApp.swift in Sources */,
+				100000000000000000000002 /* RootView.swift in Sources */,
+				100000000000000000000004 /* Models.swift in Sources */,
+				100000000000000000000005 /* SleepyStore.swift in Sources */,
+				100000000000000000000007 /* ShieldClient.swift in Sources */,
+				100000000000000000000008 /* NotificationClient.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		900000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000003 /* SleepyStoreTests.swift in Sources */,
+				100000000000000000000006 /* ShieldClientTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B00000000000000000000001 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = 500000000000000000000001 /* Sleepy */; targetProxy = 300000000000000000000001 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		C00000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = com.sleepy.app; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
+		C00000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_UILaunchScreen_Generation = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = com.sleepy.app; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
+		C00000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = com.sleepy.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Sleepy.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Sleepy"; }; name = Debug; };
+		C00000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = com.sleepy.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Sleepy.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Sleepy"; }; name = Release; };
+		C00000000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; GCC_C_LANGUAGE_STANDARD = gnu17; GCC_OPTIMIZATION_LEVEL = 0; GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)"); IPHONEOS_DEPLOYMENT_TARGET = 17.0; MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE; ONLY_ACTIVE_ARCH = YES; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+		C00000000000000000000006 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; GCC_C_LANGUAGE_STANDARD = gnu17; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; VALIDATE_PRODUCT = YES; }; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		800000000000000000000001 /* Build configuration list for PBXNativeTarget "Sleepy" */ = {isa = XCConfigurationList; buildConfigurations = (C00000000000000000000001 /* Debug */, C00000000000000000000002 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		800000000000000000000002 /* Build configuration list for PBXNativeTarget "SleepyTests" */ = {isa = XCConfigurationList; buildConfigurations = (C00000000000000000000003 /* Debug */, C00000000000000000000004 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		800000000000000000000003 /* Build configuration list for PBXProject "Sleepy" */ = {isa = XCConfigurationList; buildConfigurations = (C00000000000000000000005 /* Debug */, C00000000000000000000006 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = 400000000000000000000001 /* Project object */;
+}
