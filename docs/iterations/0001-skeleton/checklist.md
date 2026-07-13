@@ -5,5 +5,5 @@
 - [x] Mock shield tests pass.
 - [ ] Setup can reach Home.
 - [ ] Brush -> Sleep -> Summary flow works.
-- [ ] Notification scheduling code compiles.
+- [x] Notification scheduling code compiles.
 - [x] Real shield boundary compiles.
