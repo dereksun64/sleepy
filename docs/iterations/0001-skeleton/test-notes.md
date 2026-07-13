@@ -21,6 +21,12 @@
 - `xcodebuild -scheme Sleepy -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build` after adding the SwiftUI flow
   - Result: Passed (`BUILD SUCCEEDED`).
   - Device: iPhone 17 Pro simulator (iOS 26.5).
+- Final: `xcodebuild test -scheme Sleepy -destination 'platform=iOS Simulator,name=iPhone 17 Pro'`
+  - Result: Passed (`TEST SUCCEEDED`); 4 tests, 0 failures.
+  - Device: iPhone 17 Pro simulator (iOS 26.5).
+- Final: `xcodebuild -scheme Sleepy -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build`
+  - Result: Passed (`BUILD SUCCEEDED`).
+  - Device: iPhone 17 Pro simulator (iOS 26.5).
 
 ## Simulator
 
@@ -36,4 +42,11 @@ Manual check passed on iPhone 17 Pro Simulator:
 
 ## Real Device
 
-Not tested in 0001 unless explicitly noted.
+No real-device checks were run. The following remain unverified on hardware:
+
+- Notification permission prompts and delivery.
+- Screen Time authorization and app selection.
+- Applying and clearing a real Managed Settings shield.
+- Wake-time shield clearing.
+
+These require device entitlements and real-token wiring outside the 0001 skeleton. The native shield boundary compiles, while Simulator tests use mock state.
