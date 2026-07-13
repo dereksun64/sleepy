@@ -18,10 +18,21 @@
 - `xcodebuild -scheme Sleepy -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build` after adding `NotificationClient`
   - Result: Passed (`BUILD SUCCEEDED`).
   - Device: iPhone 17 Pro simulator (iOS 26.5).
+- `xcodebuild -scheme Sleepy -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build` after adding the SwiftUI flow
+  - Result: Passed (`BUILD SUCCEEDED`).
+  - Device: iPhone 17 Pro simulator (iOS 26.5).
 
 ## Simulator
 
 Using iPhone 17 Pro (iOS 26.5) because the plan's iPhone 16 simulator is unavailable.
+
+Manual check passed on iPhone 17 Pro Simulator:
+
+- Onboarding reached Home.
+- Brush -> Done brushing -> Start Sleep Sanctuary -> End early reached Morning Summary.
+- Morning Summary showed 10 XP, 2 coins, and a 0 streak after ending early.
+- Back home returned to Home.
+- Settings updated bedtime and wake time.
 
 ## Real Device
 
