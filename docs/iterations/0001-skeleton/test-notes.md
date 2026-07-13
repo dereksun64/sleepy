@@ -6,6 +6,10 @@
   - Result: Passed (`BUILD SUCCEEDED`).
   - Device: iPhone 17 Pro simulator (iOS 26.5).
   - Note: The first sandboxed attempt could not access CoreSimulator or Xcode DerivedData and was stopped; rerunning with macOS service access passed.
+- `xcodebuild test -scheme Sleepy -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:SleepyTests/SleepyStoreTests`
+  - Red result: Failed as expected because `SleepyStore` was not in scope.
+  - Green result: Passed; 3 tests, 0 failures.
+  - Device: iPhone 17 Pro simulator (iOS 26.5).
 
 ## Simulator
 

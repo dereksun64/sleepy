@@ -9,6 +9,8 @@
 		100000000000000000000001 /* SleepyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* SleepyApp.swift */; };
 		100000000000000000000002 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* RootView.swift */; };
 		100000000000000000000003 /* SleepyStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* SleepyStoreTests.swift */; };
+		100000000000000000000004 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* Models.swift */; };
+		100000000000000000000005 /* SleepyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000007 /* SleepyStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,6 +29,8 @@
 		200000000000000000000003 /* SleepyStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepyStoreTests.swift; sourceTree = "<group>"; };
 		200000000000000000000004 /* Sleepy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sleepy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		200000000000000000000005 /* SleepyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SleepyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000006 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		200000000000000000000007 /* SleepyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepyStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -49,6 +53,8 @@
 			children = (
 				200000000000000000000001 /* SleepyApp.swift */,
 				200000000000000000000002 /* RootView.swift */,
+				200000000000000000000006 /* Models.swift */,
+				200000000000000000000007 /* SleepyStore.swift */,
 			);
 			path = Sleepy;
 			sourceTree = "<group>";
@@ -142,6 +148,8 @@
 			files = (
 				100000000000000000000001 /* SleepyApp.swift in Sources */,
 				100000000000000000000002 /* RootView.swift in Sources */,
+				100000000000000000000004 /* Models.swift in Sources */,
+				100000000000000000000005 /* SleepyStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
