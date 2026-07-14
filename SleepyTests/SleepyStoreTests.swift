@@ -19,9 +19,10 @@ final class SleepyStoreTests: XCTestCase {
             configurations: configuration
         )
         context = ModelContext(container)
+        context.insert(UserSettings(hasCompletedOnboarding: true))
+        try context.save()
         store = SleepyStore()
         try store.configure(modelContext: context)
-        store.finishOnboarding()
         calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Singapore")!
     }
@@ -83,20 +84,120 @@ final class SleepyStoreTests: XCTestCase {
         XCTAssertEqual(store.routineProgress, 0.5)
     }
 
+    func testFinishBrushingSaveFailureRestoresStatusRewardAndLaterPersistence() throws {
+        var failSaves = false
+        let failingStore = SleepyStore(saveModelContext: { context in
+            if failSaves { throw TestError.persistence }
+            try context.save()
+        })
+        try failingStore.configure(modelContext: context)
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try failingStore.beginBrushing(at: now, calendar: calendar)
+
+        failSaves = true
+        XCTAssertThrowsError(try failingStore.finishBrushing(at: now, calendar: calendar))
+        XCTAssertEqual(failingStore.session?.brushingStatus, .started)
+        XCTAssertFalse(failingStore.session?.brushingRewardGranted == true)
+        XCTAssertEqual(failingStore.profile.xp, 0)
+        XCTAssertEqual(failingStore.profile.coins, 0)
+
+        failSaves = false
+        try failingStore.updateSettings(
+            targetBedtime: failingStore.bedtime,
+            wakeTime: failingStore.wakeTime
+        )
+        let relaunched = SleepyStore()
+        try relaunched.configure(modelContext: ModelContext(container))
+        XCTAssertEqual(relaunched.session?.brushingStatus, .started)
+        XCTAssertEqual(relaunched.profile.xp, 0)
+        XCTAssertEqual(relaunched.profile.coins, 0)
+    }
+
+    func testBeginSkipAndSnoozeSaveFailuresRestoreObservableState() throws {
+        var failSaves = false
+        let failingStore = SleepyStore(saveModelContext: { context in
+            if failSaves { throw TestError.persistence }
+            try context.save()
+        })
+        try failingStore.configure(modelContext: context)
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+
+        failSaves = true
+        XCTAssertThrowsError(try failingStore.beginBrushing(at: now, calendar: calendar))
+        XCTAssertNil(failingStore.session)
+
+        failSaves = false
+        try failingStore.beginBrushing(at: now, calendar: calendar)
+        failSaves = true
+        XCTAssertThrowsError(try failingStore.skipBrushing(at: now, calendar: calendar))
+        XCTAssertEqual(failingStore.session?.brushingStatus, .started)
+        XCTAssertThrowsError(try failingStore.recordSnooze(at: now, calendar: calendar))
+        XCTAssertEqual(failingStore.session?.snoozeCount, 0)
+    }
+
+    func testSelectionAndScheduleSaveFailuresRestoreObservableState() async throws {
+        var failSaves = false
+        let failingStore = SleepyStore(saveModelContext: { context in
+            if failSaves { throw TestError.persistence }
+            try context.save()
+        })
+        try failingStore.configure(modelContext: context)
+        let oldBedtime = failingStore.bedtime
+        let oldWakeTime = failingStore.wakeTime
+        let oldSelectionData = failingStore.settings.activitySelectionData
+        let newBedtime = oldBedtime.addingTimeInterval(60 * 60)
+        let newWakeTime = oldWakeTime.addingTimeInterval(60 * 60)
+
+        failSaves = true
+        XCTAssertThrowsError(
+            try failingStore.saveSelection(FamilyActivitySelection(includeEntireCategory: false))
+        )
+        XCTAssertEqual(failingStore.settings.activitySelectionData, oldSelectionData)
+        do {
+            try await failingStore.updateSchedule(
+                bedtime: newBedtime,
+                wakeTime: newWakeTime,
+                notifications: RecordingNotifications().client,
+                at: oldBedtime,
+                calendar: calendar
+            )
+            XCTFail("Expected schedule persistence to fail")
+        } catch TestError.persistence {
+        }
+        XCTAssertEqual(failingStore.bedtime, oldBedtime)
+        XCTAssertEqual(failingStore.wakeTime, oldWakeTime)
+    }
+
+    func testRecoverSaveFailureRestoresCompletionAndRewards() throws {
+        var failSaves = false
+        let failingStore = SleepyStore(saveModelContext: { context in
+            if failSaves { throw TestError.persistence }
+            try context.save()
+        })
+        try failingStore.configure(modelContext: context)
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try failingStore.markSleepActive(at: now, calendar: calendar)
+
+        failSaves = true
+        XCTAssertThrowsError(
+            try failingStore.recover(
+                at: failingStore.session!.scheduledWakeTime,
+                calendar: calendar
+            )
+        )
+        XCTAssertEqual(failingStore.session?.sleepStatus, .active)
+        XCTAssertNil(failingStore.session?.actualEndTime)
+        XCTAssertFalse(failingStore.session?.sleepRewardGranted == true)
+        XCTAssertEqual(failingStore.profile.xp, 0)
+        XCTAssertEqual(failingStore.profile.coins, 0)
+        XCTAssertEqual(failingStore.profile.currentStreak, 0)
+    }
+
     func testThrowingActionRequiresConfiguration() {
         let unconfigured = SleepyStore()
 
         XCTAssertThrowsError(try unconfigured.beginBrushing())
         XCTAssertNil(unconfigured.session)
-    }
-
-    func testCompatibilityActionReportsConfigurationFailureWithoutAdvancing() {
-        let unconfigured = SleepyStore()
-
-        unconfigured.finishOnboarding()
-
-        XCTAssertEqual(unconfigured.stage, .onboarding)
-        XCTAssertNotNil(unconfigured.recoveryMessage)
     }
 
     func testSnoozeCountPersistsAndStopsAtThree() throws {
@@ -332,6 +433,39 @@ final class SleepyStoreTests: XCTestCase {
         XCTAssertEqual(notifications.removedIdentifiers, [NotificationID.all])
     }
 
+    func testSameNightScheduleEditSynchronizesPendingSessionAcrossRelaunch() async throws {
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try store.updateSettings(
+            targetBedtime: calendar.date(byAdding: .hour, value: 1, to: now)!,
+            wakeTime: calendar.date(byAdding: .hour, value: 8, to: now)!,
+            at: now,
+            calendar: calendar
+        )
+        try store.beginBrushing(at: now, calendar: calendar)
+        let bedtime = calendar.date(byAdding: .minute, value: 30, to: store.bedtime)!
+        let wakeTime = calendar.date(byAdding: .minute, value: 45, to: store.wakeTime)!
+        let expected = SleepSchedule.currentOrNext(
+            at: now,
+            bedtime: bedtime,
+            wakeTime: wakeTime,
+            calendar: calendar
+        )
+
+        try await store.updateSchedule(
+            bedtime: bedtime,
+            wakeTime: wakeTime,
+            notifications: RecordingNotifications().client,
+            at: now,
+            calendar: calendar
+        )
+
+        let relaunched = try relaunchedStore()
+        XCTAssertEqual(relaunched.session?.scheduledBedtime, expected.start)
+        XCTAssertEqual(relaunched.session?.scheduledWakeTime, expected.end)
+        try relaunched.finishBrushing(at: now, calendar: calendar)
+        XCTAssertEqual(relaunched.session?.id, store.session?.id)
+    }
+
     func testOnboardingFinishesOnlyAfterNotificationsAreScheduled() async throws {
         store.settings.hasCompletedOnboarding = false
         try context.save()
@@ -411,6 +545,58 @@ final class SleepyStoreTests: XCTestCase {
             store.shieldStatusMessage,
             "Screen Time access is unavailable, so distracting apps are not being blocked."
         )
+    }
+
+    func testActivationAfterWakeCompletesEvenWhenScreenTimeWasRevoked() async throws {
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try store.markSleepActive(at: now, calendar: calendar)
+        let shield = ShieldClient(
+            store: makeManagedStore(),
+            authorizationStatus: { .denied },
+            stopMonitoring: { _ in }
+        )
+
+        await store.activate(
+            notifications: RecordingNotifications(permission: .approved).client,
+            shield: shield,
+            at: store.session!.scheduledWakeTime,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(store.session?.sleepStatus, .completed)
+        XCTAssertTrue(store.session?.sleepRewardGranted == true)
+    }
+
+    func testActivationDerivesShieldMessageFromNamedStoreBeforeWake() async throws {
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try store.markSleepActive(at: now, calendar: calendar)
+        let managedStore = makeManagedStore()
+        managedStore.shield.applicationCategories = .all()
+        let shield = ShieldClient(
+            store: managedStore,
+            authorizationStatus: { .approved },
+            stopMonitoring: { _ in }
+        )
+
+        await store.activate(
+            notifications: RecordingNotifications(permission: .approved).client,
+            shield: shield,
+            at: store.session!.scheduledWakeTime.addingTimeInterval(-1),
+            calendar: calendar
+        )
+
+        XCTAssertEqual(store.shieldStatusMessage, "Selected distractions are shielded.")
+    }
+
+    func testDifferentNightCannotReplaceAnActiveSession() throws {
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try store.markSleepActive(at: now, calendar: calendar)
+        let originalID = store.session?.id
+        let nextNight = calendar.date(byAdding: .day, value: 1, to: now)!
+
+        XCTAssertThrowsError(try store.beginBrushing(at: nextNight, calendar: calendar))
+        XCTAssertEqual(store.session?.id, originalID)
+        XCTAssertEqual(store.session?.sleepStatus, .active)
     }
 
     func testStartSleepPersistsVisibleUnshieldedState() throws {

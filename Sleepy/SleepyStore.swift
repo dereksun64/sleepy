@@ -5,8 +5,16 @@ import SwiftData
 
 private enum StoreError: LocalizedError {
     case notConfigured
+    case activeSessionConflict
 
-    var errorDescription: String? { "Sleepy storage is not configured." }
+    var errorDescription: String? {
+        switch self {
+        case .notConfigured:
+            "Sleepy storage is not configured."
+        case .activeSessionConflict:
+            "An active Sleep Sanctuary must be recovered or ended before starting another night."
+        }
+    }
 }
 
 @MainActor
@@ -64,23 +72,11 @@ final class SleepyStore {
     }
 
     var bedtime: Date {
-        get { settings.targetBedtime }
-        set {
-            attempt {
-                settings.targetBedtime = newValue
-                try save()
-            }
-        }
+        settings.targetBedtime
     }
 
     var wakeTime: Date {
-        get { settings.wakeTime }
-        set {
-            attempt {
-                settings.wakeTime = newValue
-                try save()
-            }
-        }
+        settings.wakeTime
     }
 
     var brushingStatus: BrushingStatus { session?.brushingStatus ?? .notStarted }
@@ -121,13 +117,6 @@ final class SleepyStore {
         }
     }
 
-    func finishOnboarding() {
-        attempt {
-            settings.hasCompletedOnboarding = true
-            try save()
-        }
-    }
-
     func finishOnboarding(
         notifications: NotificationClient,
         at now: Date = .now,
@@ -140,8 +129,10 @@ final class SleepyStore {
             at: now,
             calendar: calendar
         )
-        settings.hasCompletedOnboarding = true
-        try save()
+        try withRollback {
+            settings.hasCompletedOnboarding = true
+            try save()
+        }
     }
 
     func showSettings() {
@@ -154,10 +145,23 @@ final class SleepyStore {
         isShowingHome = true
     }
 
-    func updateSettings(targetBedtime: Date, wakeTime: Date) throws {
-        settings.targetBedtime = targetBedtime
-        settings.wakeTime = wakeTime
-        try save()
+    func updateSettings(
+        targetBedtime: Date,
+        wakeTime: Date,
+        at now: Date = .now,
+        calendar: Calendar = .current
+    ) throws {
+        try withRollback {
+            synchronizePendingSession(
+                bedtime: targetBedtime,
+                wakeTime: wakeTime,
+                at: now,
+                calendar: calendar
+            )
+            settings.targetBedtime = targetBedtime
+            settings.wakeTime = wakeTime
+            try save()
+        }
     }
 
     func updateSchedule(
@@ -167,9 +171,12 @@ final class SleepyStore {
         at now: Date = .now,
         calendar: Calendar = .current
     ) async throws {
-        settings.targetBedtime = bedtime
-        settings.wakeTime = wakeTime
-        try save()
+        try updateSettings(
+            targetBedtime: bedtime,
+            wakeTime: wakeTime,
+            at: now,
+            calendar: calendar
+        )
         let interval = SleepSchedule.currentOrNext(
             at: now,
             bedtime: bedtime,
@@ -184,53 +191,65 @@ final class SleepyStore {
             activitySelection = try ShieldClient.decode(settings.activitySelectionData)
             selectionNeedsRepair = false
         } catch {
-            activitySelection = FamilyActivitySelection(includeEntireCategory: true)
-            settings.activitySelectionData = Data()
-            selectionNeedsRepair = true
-            try save()
+            try withRollback {
+                activitySelection = FamilyActivitySelection(includeEntireCategory: true)
+                settings.activitySelectionData = Data()
+                selectionNeedsRepair = true
+                try save()
+            }
         }
     }
 
     func saveSelection(_ selection: FamilyActivitySelection) throws {
-        settings.activitySelectionData = try ShieldClient.encode(selection)
-        activitySelection = selection
-        selectionNeedsRepair = false
-        try save()
+        try withRollback {
+            settings.activitySelectionData = try ShieldClient.encode(selection)
+            activitySelection = selection
+            selectionNeedsRepair = false
+            try save()
+        }
     }
 
     func beginBrushing(at now: Date = .now, calendar: Calendar = .current) throws {
-        let current = try ensureSession(at: now, calendar: calendar)
-        current.brushingStatus = .started
-        try save()
+        try withRollback {
+            let current = try ensureSession(at: now, calendar: calendar)
+            current.brushingStatus = .started
+            try save()
+        }
     }
 
     func finishBrushing(at now: Date = .now, calendar: Calendar = .current) throws {
-        let current = try ensureSession(at: now, calendar: calendar)
-        current.brushingStatus = .done
-        if !current.brushingRewardGranted {
-            profile.xp += 10
-            profile.coins += 2
-            current.brushingRewardGranted = true
+        try withRollback {
+            let current = try ensureSession(at: now, calendar: calendar)
+            current.brushingStatus = .done
+            if !current.brushingRewardGranted {
+                profile.xp += 10
+                profile.coins += 2
+                current.brushingRewardGranted = true
+            }
+            try save()
         }
-        try save()
     }
 
     func skipBrushing(at now: Date = .now, calendar: Calendar = .current) throws {
-        let current = try ensureSession(at: now, calendar: calendar)
-        current.brushingStatus = .skipped
-        try save()
+        try withRollback {
+            let current = try ensureSession(at: now, calendar: calendar)
+            current.brushingStatus = .skipped
+            try save()
+        }
     }
 
     func recordSnooze(at now: Date = .now, calendar: Calendar = .current) throws -> Bool {
-        let current = try ensureSession(at: now, calendar: calendar)
-        guard current.snoozeCount < 3 else {
-            current.brushingStatus = .started
+        try withRollback {
+            let current = try ensureSession(at: now, calendar: calendar)
+            guard current.snoozeCount < 3 else {
+                current.brushingStatus = .started
+                try save()
+                return false
+            }
+            current.snoozeCount += 1
             try save()
-            return false
+            return true
         }
-        current.snoozeCount += 1
-        try save()
-        return true
     }
 
     func handleNotificationAction(
@@ -268,10 +287,12 @@ final class SleepyStore {
     }
 
     func markSleepActive(at now: Date = .now, calendar: Calendar = .current) throws {
-        let current = try ensureSession(at: now, calendar: calendar)
-        current.sleepStatus = .active
-        current.actualStartTime = now
-        try save()
+        try withRollback {
+            let current = try ensureSession(at: now, calendar: calendar)
+            current.sleepStatus = .active
+            current.actualStartTime = now
+            try save()
+        }
     }
 
     func activate(
@@ -281,22 +302,28 @@ final class SleepyStore {
         calendar: Calendar = .current
     ) async {
         do {
-            settings.notificationPermission = await notifications.permissionStatus()
-            settings.screenTimePermission = shield.authorizationStatus
-            var cleared = false
-            if session?.sleepStatus == .active,
-               settings.screenTimePermission != .approved || selectionNeedsRepair {
-                shield.clearShield()
-                cleared = true
-                shieldStatusMessage = "Screen Time access is unavailable, so distracting apps are not being blocked."
+            let notificationPermission = await notifications.permissionStatus()
+            try withRollback {
+                settings.notificationPermission = notificationPermission
+                settings.screenTimePermission = shield.authorizationStatus
+                if let session, session.sleepStatus == .active {
+                    if now >= session.scheduledWakeTime {
+                        shield.clearShield()
+                        session.sleepStatus = .completed
+                        session.actualEndTime = session.scheduledWakeTime
+                        awardSleepIfNeeded(for: session, calendar: calendar)
+                    } else if settings.screenTimePermission != .approved || selectionNeedsRepair {
+                        shield.clearShield()
+                        shieldStatusMessage = "Screen Time access is unavailable, so distracting apps are not being blocked."
+                    } else {
+                        shieldStatusMessage = shield.isActive
+                            ? "Selected distractions are shielded."
+                            : "Screen Time did not apply the selected shields."
+                    }
+                }
+                try save()
             }
-            if let session, session.sleepStatus == .active, now >= session.scheduledWakeTime {
-                if !cleared { shield.clearShield() }
-                try recover(at: now, calendar: calendar)
-            }
-            try save()
         } catch {
-            modelContext?.rollback()
             recoveryMessage = "Sleepy couldn't recover saved data: \(error.localizedDescription)"
         }
     }
@@ -306,17 +333,19 @@ final class SleepyStore {
         at now: Date = .now,
         calendar: Calendar = .current
     ) throws {
-        let wasShowingHome = isShowingHome
-        let current = try ensureSession(at: now, calendar: calendar)
-        let previousSleepStatus = current.sleepStatus
-        let previousActualStartTime = current.actualStartTime
-        let result = shield.apply(
-            selection: activitySelection,
-            interval: DateInterval(start: current.scheduledBedtime, end: current.scheduledWakeTime),
-            calendar: calendar
-        )
         do {
-            try markSleepActive(at: now, calendar: calendar)
+            let result = try withRollback {
+                let current = try ensureSession(at: now, calendar: calendar)
+                let result = shield.apply(
+                    selection: activitySelection,
+                    interval: DateInterval(start: current.scheduledBedtime, end: current.scheduledWakeTime),
+                    calendar: calendar
+                )
+                current.sleepStatus = .active
+                current.actualStartTime = now
+                try save()
+                return result
+            }
             switch result {
             case .shielded where shield.isActive:
                 shieldStatusMessage = "Selected distractions are shielded."
@@ -327,40 +356,24 @@ final class SleepyStore {
             }
         } catch {
             shield.clearShield()
-            modelContext?.rollback()
-            current.sleepStatus = previousSleepStatus
-            current.actualStartTime = previousActualStartTime
-            isShowingHome = wasShowingHome
             throw error
         }
     }
 
     func endEarly(at now: Date = .now) throws {
-        guard let session else { return }
-        session.sleepStatus = .ended
-        session.endedEarly = true
-        session.actualEndTime = now
-        profile.currentStreak = 0
-        try save()
+        try withRollback {
+            guard let session else { return }
+            session.sleepStatus = .ended
+            session.endedEarly = true
+            session.actualEndTime = now
+            profile.currentStreak = 0
+            try save()
+        }
     }
 
     func endEarly(shield: ShieldClient, at now: Date = .now) throws {
         shield.clearShield()
-        guard let session else { return }
-        let previousSleepStatus = session.sleepStatus
-        let previousEndedEarly = session.endedEarly
-        let previousActualEndTime = session.actualEndTime
-        let previousStreak = profile.currentStreak
-        do {
-            try endEarly(at: now)
-        } catch {
-            modelContext?.rollback()
-            session.sleepStatus = previousSleepStatus
-            session.endedEarly = previousEndedEarly
-            session.actualEndTime = previousActualEndTime
-            profile.currentStreak = previousStreak
-            throw error
-        }
+        try endEarly(at: now)
     }
 
     func handleNotificationResponse(
@@ -381,38 +394,12 @@ final class SleepyStore {
     }
 
     func recover(at now: Date = .now, calendar: Calendar = .current) throws {
-        guard let session, session.sleepStatus == .active, now >= session.scheduledWakeTime else { return }
-        session.sleepStatus = .completed
-        session.actualEndTime = session.scheduledWakeTime
-        awardSleepIfNeeded(for: session, calendar: calendar)
-        try save()
-    }
-
-    func snooze() -> Bool {
-        attempt { try recordSnooze() } ?? false
-    }
-
-    func startBrushing() {
-        attempt { try beginBrushing() }
-    }
-
-    func doneBrushing() {
-        attempt { try finishBrushing() }
-    }
-
-    func skipBrushing() {
-        attempt { try skipBrushing(at: .now, calendar: .current) }
-    }
-
-    func startSleep() {
-        attempt { try markSleepActive() }
-    }
-
-    func endSleep(endedEarly: Bool) {
-        if endedEarly {
-            attempt { try endEarly() }
-        } else if let session {
-            attempt { try recover(at: session.scheduledWakeTime) }
+        try withRollback {
+            guard let session, session.sleepStatus == .active, now >= session.scheduledWakeTime else { return }
+            session.sleepStatus = .completed
+            session.actualEndTime = session.scheduledWakeTime
+            awardSleepIfNeeded(for: session, calendar: calendar)
+            try save()
         }
     }
 
@@ -429,17 +416,43 @@ final class SleepyStore {
             wakeTime: settings.wakeTime,
             calendar: calendar
         )
-        if let session, calendar.isDate(session.scheduledBedtime, inSameDayAs: interval.start) {
+        if let session,
+           session.scheduledBedtime == interval.start,
+           session.scheduledWakeTime == interval.end {
             return session
         }
         if session?.sleepStatus == .active {
-            recoveryMessage = "A stale Sleep Sanctuary was cleared before starting tonight."
+            throw StoreError.activeSessionConflict
         }
         let replacement = SleepSession(interval: interval)
         modelContext.insert(replacement)
         session = replacement
-        try save()
         return replacement
+    }
+
+    private func synchronizePendingSession(
+        bedtime: Date,
+        wakeTime: Date,
+        at now: Date,
+        calendar: Calendar
+    ) {
+        guard let session, session.sleepStatus == .notStarted else { return }
+        let oldInterval = SleepSchedule.currentOrNext(
+            at: now,
+            bedtime: settings.targetBedtime,
+            wakeTime: settings.wakeTime,
+            calendar: calendar
+        )
+        guard session.scheduledBedtime == oldInterval.start,
+              session.scheduledWakeTime == oldInterval.end else { return }
+        let interval = SleepSchedule.currentOrNext(
+            at: now,
+            bedtime: bedtime,
+            wakeTime: wakeTime,
+            calendar: calendar
+        )
+        session.scheduledBedtime = interval.start
+        session.scheduledWakeTime = interval.end
     }
 
     private func awardSleepIfNeeded(for session: SleepSession, calendar: Calendar) {
@@ -459,22 +472,128 @@ final class SleepyStore {
         try modelContext.fetch(FetchDescriptor<T>())
     }
 
-    @discardableResult
-    private func attempt<T>(_ operation: () throws -> T) -> T? {
-        guard modelContext != nil else {
-            recoveryMessage = StoreError.notConfigured.localizedDescription
-            return nil
+    private struct SessionSnapshot {
+        let model: SleepSession
+        let scheduledBedtime: Date
+        let scheduledWakeTime: Date
+        let actualStartTime: Date?
+        let actualEndTime: Date?
+        let brushingStatusRawValue: String
+        let brushingRewardGranted: Bool
+        let sleepStatusRawValue: String
+        let snoozeCount: Int
+        let endedEarly: Bool
+        let sleepRewardGranted: Bool
+
+        init(_ model: SleepSession) {
+            self.model = model
+            scheduledBedtime = model.scheduledBedtime
+            scheduledWakeTime = model.scheduledWakeTime
+            actualStartTime = model.actualStartTime
+            actualEndTime = model.actualEndTime
+            brushingStatusRawValue = model.brushingStatusRawValue
+            brushingRewardGranted = model.brushingRewardGranted
+            sleepStatusRawValue = model.sleepStatusRawValue
+            snoozeCount = model.snoozeCount
+            endedEarly = model.endedEarly
+            sleepRewardGranted = model.sleepRewardGranted
         }
-        let previousSession = session
-        let previousIsShowingHome = isShowingHome
+
+        func restore() {
+            model.scheduledBedtime = scheduledBedtime
+            model.scheduledWakeTime = scheduledWakeTime
+            model.actualStartTime = actualStartTime
+            model.actualEndTime = actualEndTime
+            model.brushingStatusRawValue = brushingStatusRawValue
+            model.brushingRewardGranted = brushingRewardGranted
+            model.sleepStatusRawValue = sleepStatusRawValue
+            model.snoozeCount = snoozeCount
+            model.endedEarly = endedEarly
+            model.sleepRewardGranted = sleepRewardGranted
+        }
+    }
+
+    private struct StoreSnapshot {
+        let targetBedtime: Date
+        let wakeTime: Date
+        let hasCompletedOnboarding: Bool
+        let notificationPermissionRawValue: String
+        let screenTimePermissionRawValue: String
+        let activitySelectionData: Data
+        let xp: Int
+        let coins: Int
+        let currentStreak: Int
+        let bestStreak: Int
+        let lastCompletedSleepDate: Date?
+        let session: SessionSnapshot?
+        let isShowingSettings: Bool
+        let isShowingHome: Bool
+        let recoveryMessage: String?
+        let shieldStatusMessage: String
+        let activitySelection: FamilyActivitySelection
+        let selectionNeedsRepair: Bool
+    }
+
+    private func snapshot() -> StoreSnapshot {
+        StoreSnapshot(
+            targetBedtime: settings.targetBedtime,
+            wakeTime: settings.wakeTime,
+            hasCompletedOnboarding: settings.hasCompletedOnboarding,
+            notificationPermissionRawValue: settings.notificationPermissionRawValue,
+            screenTimePermissionRawValue: settings.screenTimePermissionRawValue,
+            activitySelectionData: settings.activitySelectionData,
+            xp: profile.xp,
+            coins: profile.coins,
+            currentStreak: profile.currentStreak,
+            bestStreak: profile.bestStreak,
+            lastCompletedSleepDate: profile.lastCompletedSleepDate,
+            session: session.map(SessionSnapshot.init),
+            isShowingSettings: isShowingSettings,
+            isShowingHome: isShowingHome,
+            recoveryMessage: recoveryMessage,
+            shieldStatusMessage: shieldStatusMessage,
+            activitySelection: activitySelection,
+            selectionNeedsRepair: selectionNeedsRepair
+        )
+    }
+
+    private func restore(_ snapshot: StoreSnapshot, in modelContext: ModelContext) {
+        let failedSession = session
+        modelContext.rollback()
+        if let failedSession,
+           failedSession !== snapshot.session?.model,
+           failedSession.modelContext != nil {
+            modelContext.delete(failedSession)
+        }
+        settings.targetBedtime = snapshot.targetBedtime
+        settings.wakeTime = snapshot.wakeTime
+        settings.hasCompletedOnboarding = snapshot.hasCompletedOnboarding
+        settings.notificationPermissionRawValue = snapshot.notificationPermissionRawValue
+        settings.screenTimePermissionRawValue = snapshot.screenTimePermissionRawValue
+        settings.activitySelectionData = snapshot.activitySelectionData
+        profile.xp = snapshot.xp
+        profile.coins = snapshot.coins
+        profile.currentStreak = snapshot.currentStreak
+        profile.bestStreak = snapshot.bestStreak
+        profile.lastCompletedSleepDate = snapshot.lastCompletedSleepDate
+        snapshot.session?.restore()
+        session = snapshot.session?.model
+        isShowingSettings = snapshot.isShowingSettings
+        isShowingHome = snapshot.isShowingHome
+        recoveryMessage = snapshot.recoveryMessage
+        shieldStatusMessage = snapshot.shieldStatusMessage
+        activitySelection = snapshot.activitySelection
+        selectionNeedsRepair = snapshot.selectionNeedsRepair
+    }
+
+    private func withRollback<T>(_ operation: () throws -> T) throws -> T {
+        guard let modelContext else { throw StoreError.notConfigured }
+        let snapshot = snapshot()
         do {
             return try operation()
         } catch {
-            modelContext?.rollback()
-            session = previousSession
-            isShowingHome = previousIsShowingHome
-            recoveryMessage = "Sleepy couldn't save that change. Please try again."
-            return nil
+            restore(snapshot, in: modelContext)
+            throw error
         }
     }
 

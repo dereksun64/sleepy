@@ -48,6 +48,8 @@ private struct SleepyAppRoot: View {
                 guard !didLaunch else { return }
                 didLaunch = true
                 store.configureForLaunch(modelContext: modelContext)
+                guard store.isConfigured else { return }
+                await store.activate(notifications: notifications, shield: shield)
                 appDelegate.installResponseHandler { action, requestIdentifier in
                     Task { @MainActor in
                         await store.handleNotificationResponse(
@@ -57,7 +59,6 @@ private struct SleepyAppRoot: View {
                         )
                     }
                 }
-                await store.activate(notifications: notifications, shield: shield)
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, store.isConfigured else { return }
