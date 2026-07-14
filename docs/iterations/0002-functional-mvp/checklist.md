@@ -4,7 +4,7 @@ Iteration 0002 remains incomplete until every acceptance criterion and the requi
 
 ## Spec Section 13 Acceptance Criteria
 
-- [x] The app builds and all automated tests pass. Evidence: the standard full suite executed 50 tests with 0 failures, and both required builds ended with `BUILD SUCCEEDED` on 2026-07-14.
+- [x] The app builds and all automated tests pass. Evidence: the final standard full suite executed 58 tests with 0 failures, and both required builds ended with `BUILD SUCCEEDED` on 2026-07-14.
 - [ ] The complete bedtime loop works after terminating and relaunching the app.
 - [ ] Settings, selection, session, snooze count, and progress persist. Automated tests cover schedule-setting updates, selection persistence, session recovery, snooze persistence, and progress-state rollover; progress persistence after actually terminating and relaunching the app remains pending interactive verification.
 - [ ] Real selected targets are shielded on a physical iPhone.
@@ -18,7 +18,7 @@ Iteration 0002 remains incomplete until every acceptance criterion and the requi
 
 ## Additional Verification Lines
 
-- [x] Standard full automated suite passes on the named iOS Simulator destination. Evidence: iPhone 17 Pro, iOS 26.5, 50 tests, 0 failures, exit 0, `TEST SUCCEEDED`.
+- [x] Standard full automated suite passes on the named iOS Simulator destination. Evidence: iPhone 17 Pro, iOS 26.5, 58 tests, 0 failures, exit 0, `TEST SUCCEEDED`.
 - [x] Standard simulator build succeeds on the named iOS Simulator destination. Evidence: iPhone 17 Pro, iOS 26.5, exit 0, `BUILD SUCCEEDED`.
 - [x] Standard unsigned generic iOS device build succeeds. Evidence: iPhoneOS 26.5 SDK, `CODE_SIGNING_ALLOWED=NO`, exit 0, `BUILD SUCCEEDED`.
 - [ ] Real Family Controls entitlement approval is confirmed for both the app and Device Activity monitor extension.

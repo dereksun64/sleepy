@@ -412,6 +412,41 @@ final class SleepyStoreTests: XCTestCase {
         XCTAssertEqual(try relaunchedStore().session?.snoozeCount, 1)
     }
 
+    func testNotificationSnoozeSaveFailureDoesNotLeakNewSession() async throws {
+        var failSaves = false
+        let failingStore = SleepyStore(saveModelContext: { context in
+            if failSaves { throw TestError.persistence }
+            try context.save()
+        })
+        try failingStore.configure(modelContext: context)
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+
+        failSaves = true
+        do {
+            try await failingStore.handleNotificationAction(
+                .snooze,
+                requestIdentifier: NotificationID.prompt,
+                notifications: RecordingNotifications().client,
+                at: now,
+                calendar: calendar
+            )
+            XCTFail("Expected persistence to fail")
+        } catch TestError.persistence {
+        }
+        XCTAssertNil(failingStore.session)
+
+        failSaves = false
+        try failingStore.updateSettings(
+            targetBedtime: failingStore.bedtime,
+            wakeTime: failingStore.wakeTime,
+            at: now,
+            calendar: calendar
+        )
+        let relaunched = SleepyStore()
+        try relaunched.configure(modelContext: ModelContext(container))
+        XCTAssertNil(relaunched.session)
+    }
+
     func testUpdateSchedulePersistsTimesBeforeReplacingNotifications() async throws {
         let bedtime = Date(timeIntervalSince1970: 1_752_500_000)
         let wakeTime = bedtime.addingTimeInterval(8 * 60 * 60)

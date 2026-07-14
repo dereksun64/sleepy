@@ -17,6 +17,10 @@ private enum StoreError: LocalizedError {
     }
 }
 
+private enum SnoozeMutationError: Error {
+    case staleResponse
+}
+
 @MainActor
 @Observable
 final class SleepyStore {
@@ -241,14 +245,9 @@ final class SleepyStore {
     func recordSnooze(at now: Date = .now, calendar: Calendar = .current) throws -> Bool {
         try withRollback {
             let current = try ensureSession(at: now, calendar: calendar)
-            guard current.snoozeCount < 3 else {
-                current.brushingStatus = .started
-                try save()
-                return false
-            }
-            current.snoozeCount += 1
+            let shouldSchedule = mutateSnooze(current)
             try save()
-            return true
+            return shouldSchedule
         }
     }
 
@@ -267,14 +266,24 @@ final class SleepyStore {
                 notifications.cancelNoResponseFollowUp()
                 return
             }
-            let current = try ensureSession(at: now, calendar: calendar)
-            guard current.snoozeCount == sourceCount, current.brushingStatus == .notStarted else {
+            let count: Int?
+            do {
+                count = try withRollback {
+                    let current = try ensureSession(at: now, calendar: calendar)
+                    guard current.snoozeCount == sourceCount,
+                          current.brushingStatus == .notStarted else {
+                        throw SnoozeMutationError.staleResponse
+                    }
+                    let shouldSchedule = mutateSnooze(current)
+                    try save()
+                    return shouldSchedule ? current.snoozeCount : nil
+                }
+            } catch SnoozeMutationError.staleResponse {
                 notifications.cancelNoResponseFollowUp()
                 return
             }
-            let shouldSchedule = try recordSnooze(at: now, calendar: calendar)
             notifications.cancelNoResponseFollowUp()
-            if shouldSchedule, let count = session?.snoozeCount {
+            if let count {
                 try await notifications.scheduleSnooze(count: count, from: now, calendar: calendar)
             }
             return
@@ -428,6 +437,15 @@ final class SleepyStore {
         modelContext.insert(replacement)
         session = replacement
         return replacement
+    }
+
+    private func mutateSnooze(_ session: SleepSession) -> Bool {
+        guard session.snoozeCount < 3 else {
+            session.brushingStatus = .started
+            return false
+        }
+        session.snoozeCount += 1
+        return true
     }
 
     private func synchronizePendingSession(

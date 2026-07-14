@@ -16,11 +16,9 @@ xcodebuild test -scheme Sleepy -destination 'platform=iOS Simulator,name=iPhone 
 ```
 
 - Result: exit 0, `** TEST SUCCEEDED **`.
-- Count: 50 tests executed, 0 failures, 0 unexpected failures.
-- Suites: 10 `NotificationClientTests`, 7 `ShieldClientTests`, 5 `SleepScheduleTests`, and 28 `SleepyStoreTests`.
-- XCTest duration: 0.330 seconds (0.358 seconds total).
-- Xcode test-operation elapsed time: 6.125 seconds.
-- Result bundle: `/Users/dereksun/Library/Developer/Xcode/DerivedData/Sleepy-akrzxfzgltdyvvdtbwookzuxopxx/Logs/Test/Test-Sleepy-2026.07.14_16-43-43-+0800.xcresult`.
+- Count: 58 tests executed, 0 failures, 0 unexpected failures.
+- Suites: 10 `NotificationClientTests`, 7 `ShieldClientTests`, 5 `SleepScheduleTests`, and 36 `SleepyStoreTests`.
+- Result bundle: `/Users/dereksun/Library/Developer/Xcode/DerivedData/Sleepy-akrzxfzgltdyvvdtbwookzuxopxx/Logs/Test/Test-Sleepy-2026.07.14_17-16-36-+0800.xcresult`.
 - Non-failing runtime diagnostic: one Core Animation app-launch measurement event could not be sent.
 
 The first sandbox-restricted attempt of the same command could not connect to CoreSimulatorService and exited 70 because no simulator destination was visible. The command was rerun unchanged with standard Xcode/CoreSimulator access; the successful result above is the verification result.
