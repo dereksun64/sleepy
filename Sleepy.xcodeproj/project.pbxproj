@@ -21,6 +21,7 @@
 		10000000000000000000000D /* DeviceActivityMonitorExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000010 /* DeviceActivityMonitorExtension.swift */; };
 		10000000000000000000000E /* ScreenTimeNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000D /* ScreenTimeNames.swift */; };
 		10000000000000000000000F /* SleepyDeviceActivityMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 200000000000000000000013 /* SleepyDeviceActivityMonitor.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		100000000000000000000010 /* NotificationClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000014 /* NotificationClientTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,6 +74,7 @@
 		200000000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		200000000000000000000012 /* SleepyDeviceActivityMonitor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SleepyDeviceActivityMonitor.entitlements; sourceTree = "<group>"; };
 		200000000000000000000013 /* SleepyDeviceActivityMonitor.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SleepyDeviceActivityMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000014 /* NotificationClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationClientTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +134,7 @@
 				200000000000000000000003 /* SleepyStoreTests.swift */,
 				200000000000000000000008 /* ShieldClientTests.swift */,
 				20000000000000000000000B /* SleepScheduleTests.swift */,
+				200000000000000000000014 /* NotificationClientTests.swift */,
 			);
 			path = SleepyTests;
 			sourceTree = "<group>";
@@ -302,6 +305,7 @@
 				100000000000000000000003 /* SleepyStoreTests.swift in Sources */,
 				100000000000000000000006 /* ShieldClientTests.swift in Sources */,
 				100000000000000000000009 /* SleepScheduleTests.swift in Sources */,
+				100000000000000000000010 /* NotificationClientTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

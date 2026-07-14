@@ -130,6 +130,25 @@ final class SleepyStore {
         try save()
     }
 
+    func updateSchedule(
+        bedtime: Date,
+        wakeTime: Date,
+        notifications: NotificationClient,
+        at now: Date = .now,
+        calendar: Calendar = .current
+    ) async throws {
+        settings.targetBedtime = bedtime
+        settings.wakeTime = wakeTime
+        try save()
+        let interval = SleepSchedule.currentOrNext(
+            at: now,
+            bedtime: bedtime,
+            wakeTime: wakeTime,
+            calendar: calendar
+        )
+        try await notifications.scheduleNight(interval: interval, calendar: calendar)
+    }
+
     func restoreSelection() throws {
         do {
             activitySelection = try ShieldClient.decode(settings.activitySelectionData)
@@ -182,6 +201,30 @@ final class SleepyStore {
         current.snoozeCount += 1
         try save()
         return true
+    }
+
+    func handleNotificationAction(
+        _ action: NotificationAction,
+        notifications: NotificationClient,
+        at now: Date = .now,
+        calendar: Calendar = .current
+    ) async throws {
+        switch action {
+        case .startingNow:
+            try beginBrushing(at: now, calendar: calendar)
+        case .snooze:
+            let shouldSchedule = try recordSnooze(at: now, calendar: calendar)
+            notifications.cancelNoResponseFollowUp()
+            if shouldSchedule, let count = session?.snoozeCount {
+                try await notifications.scheduleSnooze(count: count, from: now, calendar: calendar)
+            }
+            return
+        case .alreadyDone:
+            try finishBrushing(at: now, calendar: calendar)
+        case .skipTonight:
+            try skipBrushing(at: now, calendar: calendar)
+        }
+        notifications.cancelNoResponseFollowUp()
     }
 
     func markSleepActive(at now: Date = .now, calendar: Calendar = .current) throws {

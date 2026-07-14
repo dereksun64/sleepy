@@ -1,5 +1,6 @@
 import FamilyControls
 import SwiftData
+import UserNotifications
 import XCTest
 @testable import Sleepy
 
@@ -135,6 +136,159 @@ final class SleepyStoreTests: XCTestCase {
         let next = calendar.date(byAdding: .day, value: 1, to: first)!
         try store.beginBrushing(at: next, calendar: calendar)
         XCTAssertEqual(store.routineProgress, 0)
+    }
+
+    func testStartingNowPersistsStartedBrushingBeforeRouting() async throws {
+        let notifications = RecordingNotifications()
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+
+        try await store.handleNotificationAction(.startingNow, notifications: notifications.client, at: now, calendar: calendar)
+
+        let relaunched = try relaunchedStore()
+        XCTAssertEqual(relaunched.session?.brushingStatus, .started)
+        XCTAssertEqual(relaunched.stage, .brushing)
+        XCTAssertEqual(notifications.cancelCount, 1)
+    }
+
+    func testAlreadyDonePersistsRewardBeforeRouting() async throws {
+        let notifications = RecordingNotifications()
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+
+        try await store.handleNotificationAction(.alreadyDone, notifications: notifications.client, at: now, calendar: calendar)
+
+        let relaunched = try relaunchedStore()
+        XCTAssertEqual(relaunched.session?.brushingStatus, .done)
+        XCTAssertEqual(relaunched.profile.xp, 10)
+        XCTAssertEqual(relaunched.profile.coins, 2)
+        XCTAssertTrue(relaunched.session?.brushingRewardGranted == true)
+        XCTAssertEqual(relaunched.stage, .startSleep)
+        XCTAssertEqual(notifications.cancelCount, 1)
+    }
+
+    func testSkipPersistsNoRewardBeforeRouting() async throws {
+        let notifications = RecordingNotifications()
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+
+        try await store.handleNotificationAction(.skipTonight, notifications: notifications.client, at: now, calendar: calendar)
+
+        let relaunched = try relaunchedStore()
+        XCTAssertEqual(relaunched.session?.brushingStatus, .skipped)
+        XCTAssertEqual(relaunched.profile.xp, 0)
+        XCTAssertEqual(relaunched.profile.coins, 0)
+        XCTAssertFalse(relaunched.session?.brushingRewardGranted == true)
+        XCTAssertEqual(relaunched.stage, .startSleep)
+        XCTAssertEqual(notifications.cancelCount, 1)
+    }
+
+    func testFirstThreeSnoozesPersistBeforeSchedulingAndFourthRoutesToBrushing() async throws {
+        let notifications = RecordingNotifications(context: context)
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+
+        for _ in 0..<4 {
+            try await store.handleNotificationAction(.snooze, notifications: notifications.client, at: now, calendar: calendar)
+        }
+
+        let relaunched = try relaunchedStore()
+        XCTAssertEqual(relaunched.session?.snoozeCount, 3)
+        XCTAssertEqual(relaunched.stage, .brushing)
+        XCTAssertEqual(notifications.scheduledSnoozeCounts, [1, 2, 3])
+        XCTAssertEqual(notifications.persistedCountsAtScheduling, [1, 2, 3])
+        XCTAssertEqual(notifications.cancelCount, 4)
+    }
+
+    func testSchedulingFailureIsThrownAfterSnoozePersists() async throws {
+        let notifications = RecordingNotifications(addError: TestError.scheduling)
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+
+        do {
+            try await store.handleNotificationAction(.snooze, notifications: notifications.client, at: now, calendar: calendar)
+            XCTFail("Expected scheduling to fail")
+        } catch TestError.scheduling {
+        }
+
+        XCTAssertEqual(try relaunchedStore().session?.snoozeCount, 1)
+    }
+
+    func testUpdateSchedulePersistsTimesBeforeReplacingNotifications() async throws {
+        let bedtime = Date(timeIntervalSince1970: 1_752_500_000)
+        let wakeTime = bedtime.addingTimeInterval(8 * 60 * 60)
+        let notifications = RecordingNotifications(context: context)
+
+        try await store.updateSchedule(
+            bedtime: bedtime,
+            wakeTime: wakeTime,
+            notifications: notifications.client,
+            at: bedtime,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(notifications.persistedBedtimeAtScheduling, bedtime)
+        XCTAssertEqual(notifications.persistedWakeTimeAtScheduling, wakeTime)
+        let relaunched = try relaunchedStore()
+        XCTAssertEqual(relaunched.settings.targetBedtime, bedtime)
+        XCTAssertEqual(relaunched.settings.wakeTime, wakeTime)
+        XCTAssertEqual(notifications.removedIdentifiers, [NotificationID.all])
+    }
+
+    private func relaunchedStore() throws -> SleepyStore {
+        let relaunched = SleepyStore()
+        try relaunched.configure(modelContext: context)
+        return relaunched
+    }
+}
+
+private enum TestError: Error {
+    case scheduling
+}
+
+@MainActor
+private final class RecordingNotifications {
+    var requests: [UNNotificationRequest] = []
+    var removedIdentifiers: [[String]] = []
+    var persistedCountsAtScheduling: [Int] = []
+    var persistedBedtimeAtScheduling: Date?
+    var persistedWakeTimeAtScheduling: Date?
+    let context: ModelContext?
+    let addError: Error?
+
+    init(context: ModelContext? = nil, addError: Error? = nil) {
+        self.context = context
+        self.addError = addError
+    }
+
+    var client: NotificationClient {
+        NotificationClient(
+            addRequest: { request in
+                if let addError = self.addError { throw addError }
+                self.requests.append(request)
+                if request.identifier.hasPrefix("bedtime.snooze.") {
+                    self.persistedCountsAtScheduling.append(try self.persistedSession()?.snoozeCount ?? 0)
+                } else if request.identifier == NotificationID.prompt {
+                    let settings = try self.persistedSettings()
+                    self.persistedBedtimeAtScheduling = settings?.targetBedtime
+                    self.persistedWakeTimeAtScheduling = settings?.wakeTime
+                }
+            },
+            removeRequests: { self.removedIdentifiers.append($0) }
+        )
+    }
+
+    var scheduledSnoozeCounts: [Int] {
+        requests.compactMap {
+            Int($0.identifier.replacingOccurrences(of: "bedtime.snooze.", with: ""))
+        }
+    }
+
+    var cancelCount: Int {
+        removedIdentifiers.filter { $0 == [NotificationID.noResponse] }.count
+    }
+
+    private func persistedSession() throws -> SleepSession? {
+        try context?.fetch(FetchDescriptor<SleepSession>()).first
+    }
+
+    private func persistedSettings() throws -> UserSettings? {
+        try context?.fetch(FetchDescriptor<UserSettings>()).first
     }
 }
 
