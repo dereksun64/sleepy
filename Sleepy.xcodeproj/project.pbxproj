@@ -18,6 +18,9 @@
 		100000000000000000000009 /* SleepScheduleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000B /* SleepScheduleTests.swift */; };
 		10000000000000000000000A /* SleepSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000C /* SleepSchedule.swift */; };
 		10000000000000000000000B /* ScreenTimeNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000D /* ScreenTimeNames.swift */; };
+		10000000000000000000000D /* DeviceActivityMonitorExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000010 /* DeviceActivityMonitorExtension.swift */; };
+		10000000000000000000000E /* ScreenTimeNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000D /* ScreenTimeNames.swift */; };
+		10000000000000000000000F /* SleepyDeviceActivityMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 200000000000000000000013 /* SleepyDeviceActivityMonitor.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,7 +31,28 @@
 			remoteGlobalIDString = 500000000000000000000001;
 			remoteInfo = Sleepy;
 		};
+		300000000000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 400000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 500000000000000000000003;
+			remoteInfo = SleepyDeviceActivityMonitor;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E00000000000000000000001 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				10000000000000000000000F /* SleepyDeviceActivityMonitor.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		200000000000000000000001 /* SleepyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepyApp.swift; sourceTree = "<group>"; };
@@ -45,6 +69,10 @@
 		20000000000000000000000C /* SleepSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSchedule.swift; sourceTree = "<group>"; };
 		20000000000000000000000D /* ScreenTimeNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTimeNames.swift; sourceTree = "<group>"; };
 		20000000000000000000000E /* Sleepy.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Sleepy.entitlements; sourceTree = "<group>"; };
+		200000000000000000000010 /* DeviceActivityMonitorExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceActivityMonitorExtension.swift; sourceTree = "<group>"; };
+		200000000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		200000000000000000000012 /* SleepyDeviceActivityMonitor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SleepyDeviceActivityMonitor.entitlements; sourceTree = "<group>"; };
+		200000000000000000000013 /* SleepyDeviceActivityMonitor.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SleepyDeviceActivityMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +90,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		600000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -70,6 +105,7 @@
 			children = (
 				700000000000000000000002 /* Sleepy */,
 				700000000000000000000003 /* SleepyTests */,
+				700000000000000000000005 /* SleepyDeviceActivityMonitor */,
 				700000000000000000000004 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -105,8 +141,19 @@
 			children = (
 				200000000000000000000004 /* Sleepy.app */,
 				200000000000000000000005 /* SleepyTests.xctest */,
+				200000000000000000000013 /* SleepyDeviceActivityMonitor.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		700000000000000000000005 /* SleepyDeviceActivityMonitor */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000010 /* DeviceActivityMonitorExtension.swift */,
+				200000000000000000000011 /* Info.plist */,
+				200000000000000000000012 /* SleepyDeviceActivityMonitor.entitlements */,
+			);
+			path = SleepyDeviceActivityMonitor;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -119,10 +166,12 @@
 				900000000000000000000001 /* Sources */,
 				600000000000000000000001 /* Frameworks */,
 				A00000000000000000000001 /* Resources */,
+				E00000000000000000000001 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B00000000000000000000002 /* PBXTargetDependency */,
 			);
 			name = Sleepy;
 			productName = Sleepy;
@@ -147,6 +196,23 @@
 			productReference = 200000000000000000000005 /* SleepyTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		500000000000000000000003 /* SleepyDeviceActivityMonitor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 800000000000000000000004 /* Build configuration list for PBXNativeTarget "SleepyDeviceActivityMonitor" */;
+			buildPhases = (
+				900000000000000000000003 /* Sources */,
+				600000000000000000000003 /* Frameworks */,
+				A00000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SleepyDeviceActivityMonitor;
+			productName = SleepyDeviceActivityMonitor;
+			productReference = 200000000000000000000013 /* SleepyDeviceActivityMonitor.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -163,6 +229,9 @@
 					500000000000000000000002 = {
 						CreatedOnToolsVersion = 26.6;
 						TestTargetID = 500000000000000000000001;
+					};
+					500000000000000000000003 = {
+						CreatedOnToolsVersion = 26.6;
 					};
 				};
 			};
@@ -181,6 +250,7 @@
 			targets = (
 				500000000000000000000001 /* Sleepy */,
 				500000000000000000000002 /* SleepyTests */,
+				500000000000000000000003 /* SleepyDeviceActivityMonitor */,
 			);
 		};
 /* End PBXProject section */
@@ -194,6 +264,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A00000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000003 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -228,6 +305,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		900000000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				10000000000000000000000D /* DeviceActivityMonitorExtension.swift in Sources */,
+				10000000000000000000000E /* ScreenTimeNames.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -235,6 +321,11 @@
 			isa = PBXTargetDependency;
 			target = 500000000000000000000001 /* Sleepy */;
 			targetProxy = 300000000000000000000001 /* PBXContainerItemProxy */;
+		};
+		B00000000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 500000000000000000000003 /* SleepyDeviceActivityMonitor */;
+			targetProxy = 300000000000000000000002 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -342,6 +433,52 @@
 			};
 			name = Release;
 		};
+		C00000000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = SleepyDeviceActivityMonitor/SleepyDeviceActivityMonitor.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 3TYHDNVA4Y;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SleepyDeviceActivityMonitor/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dereksun.sleepy.dev.DeviceActivityMonitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		C00000000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = SleepyDeviceActivityMonitor/SleepyDeviceActivityMonitor.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 3TYHDNVA4Y;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SleepyDeviceActivityMonitor/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dereksun.sleepy.dev.DeviceActivityMonitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -368,6 +505,15 @@
 			buildConfigurations = (
 				C00000000000000000000005 /* Debug */,
 				C00000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		800000000000000000000004 /* Build configuration list for PBXNativeTarget "SleepyDeviceActivityMonitor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C00000000000000000000007 /* Debug */,
+				C00000000000000000000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
