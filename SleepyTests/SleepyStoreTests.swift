@@ -390,13 +390,14 @@ final class SleepyStoreTests: XCTestCase {
     }
 
     func testStartSleepClearsShieldWhenActivePersistenceFails() throws {
-        var saveCount = 0
+        var failSaves = false
         let failingStore = SleepyStore(saveModelContext: { context in
-            saveCount += 1
-            if saveCount == 3 { throw TestError.persistence }
+            if failSaves { throw TestError.persistence }
             try context.save()
         })
         try failingStore.configure(modelContext: context)
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try failingStore.beginBrushing(at: now, calendar: calendar)
         var clearCount = 0
         let shield = ShieldClient(
             store: makeManagedStore(),
@@ -404,10 +405,11 @@ final class SleepyStoreTests: XCTestCase {
             stopMonitoring: { _ in clearCount += 1 }
         )
 
+        failSaves = true
         XCTAssertThrowsError(
             try failingStore.startSleep(
                 shield: shield,
-                at: Date(timeIntervalSince1970: 1_752_500_000),
+                at: now,
                 calendar: calendar
             )
         ) { error in
@@ -415,6 +417,64 @@ final class SleepyStoreTests: XCTestCase {
         }
         XCTAssertEqual(clearCount, 1)
         XCTAssertFalse(shield.isActive)
+        XCTAssertEqual(failingStore.session?.sleepStatus, .notStarted)
+        XCTAssertNil(failingStore.session?.actualStartTime)
+        XCTAssertEqual(failingStore.stage, .brushing)
+        XCTAssertEqual(failingStore.routineProgress, 0)
+
+        failSaves = false
+        try failingStore.updateSettings(
+            targetBedtime: failingStore.bedtime,
+            wakeTime: failingStore.wakeTime
+        )
+        let relaunched = SleepyStore()
+        try relaunched.configure(modelContext: ModelContext(container))
+        XCTAssertEqual(relaunched.session?.sleepStatus, .notStarted)
+        XCTAssertNil(relaunched.session?.actualStartTime)
+    }
+
+    func testEndEarlySaveFailureKeepsShieldClearedAndRestoresActiveState() throws {
+        var failSaves = false
+        let failingStore = SleepyStore(saveModelContext: { context in
+            if failSaves { throw TestError.persistence }
+            try context.save()
+        })
+        try failingStore.configure(modelContext: context)
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try failingStore.markSleepActive(at: now, calendar: calendar)
+        failingStore.profile.currentStreak = 4
+        try context.save()
+        var clearCount = 0
+        let shield = ShieldClient(
+            store: makeManagedStore(),
+            stopMonitoring: { _ in clearCount += 1 }
+        )
+
+        failSaves = true
+        XCTAssertThrowsError(try failingStore.endEarly(shield: shield, at: now)) { error in
+            XCTAssertEqual(error as? TestError, .persistence)
+        }
+
+        XCTAssertEqual(clearCount, 1)
+        XCTAssertFalse(shield.isActive)
+        XCTAssertEqual(failingStore.session?.sleepStatus, .active)
+        XCTAssertFalse(failingStore.session?.endedEarly == true)
+        XCTAssertNil(failingStore.session?.actualEndTime)
+        XCTAssertEqual(failingStore.profile.currentStreak, 4)
+        XCTAssertEqual(failingStore.stage, .sleepActive)
+        XCTAssertEqual(failingStore.routineProgress, 1)
+
+        failSaves = false
+        try failingStore.updateSettings(
+            targetBedtime: failingStore.bedtime,
+            wakeTime: failingStore.wakeTime
+        )
+        let relaunched = SleepyStore()
+        try relaunched.configure(modelContext: ModelContext(container))
+        XCTAssertEqual(relaunched.session?.sleepStatus, .active)
+        XCTAssertFalse(relaunched.session?.endedEarly == true)
+        XCTAssertNil(relaunched.session?.actualEndTime)
+        XCTAssertEqual(relaunched.profile.currentStreak, 4)
     }
 
     func testActivationSurfacesPersistenceFailure() async throws {

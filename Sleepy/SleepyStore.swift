@@ -306,7 +306,10 @@ final class SleepyStore {
         at now: Date = .now,
         calendar: Calendar = .current
     ) throws {
+        let wasShowingHome = isShowingHome
         let current = try ensureSession(at: now, calendar: calendar)
+        let previousSleepStatus = current.sleepStatus
+        let previousActualStartTime = current.actualStartTime
         let result = shield.apply(
             selection: activitySelection,
             interval: DateInterval(start: current.scheduledBedtime, end: current.scheduledWakeTime),
@@ -324,6 +327,10 @@ final class SleepyStore {
             }
         } catch {
             shield.clearShield()
+            modelContext?.rollback()
+            current.sleepStatus = previousSleepStatus
+            current.actualStartTime = previousActualStartTime
+            isShowingHome = wasShowingHome
             throw error
         }
     }
@@ -339,7 +346,21 @@ final class SleepyStore {
 
     func endEarly(shield: ShieldClient, at now: Date = .now) throws {
         shield.clearShield()
-        try endEarly(at: now)
+        guard let session else { return }
+        let previousSleepStatus = session.sleepStatus
+        let previousEndedEarly = session.endedEarly
+        let previousActualEndTime = session.actualEndTime
+        let previousStreak = profile.currentStreak
+        do {
+            try endEarly(at: now)
+        } catch {
+            modelContext?.rollback()
+            session.sleepStatus = previousSleepStatus
+            session.endedEarly = previousEndedEarly
+            session.actualEndTime = previousActualEndTime
+            profile.currentStreak = previousStreak
+            throw error
+        }
     }
 
     func handleNotificationResponse(
