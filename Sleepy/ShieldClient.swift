@@ -47,7 +47,7 @@ final class ShieldClient {
     }
 
     var isActive: Bool {
-        if mocked || mockIsActive { return mockIsActive }
+        if mocked { return mockIsActive }
         return store.shield.applications?.isEmpty == false
             || store.shield.webDomains?.isEmpty == false
             || store.shield.applicationCategories != nil
@@ -72,7 +72,7 @@ final class ShieldClient {
             try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
             return authorizationStatus
         } catch {
-            return authorizationStatus == .unknown ? .denied : authorizationStatus
+            return authorizationStatus
         }
         #endif
     }
@@ -82,6 +82,7 @@ final class ShieldClient {
         interval: DateInterval,
         calendar: Calendar = .current
     ) -> ShieldStartResult {
+        store.clearAllSettings()
         guard authorizationStatus == .approved else {
             return .unshielded(
                 "Screen Time access is unavailable, so distracting apps are not being blocked."

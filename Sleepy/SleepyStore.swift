@@ -104,7 +104,7 @@ final class SleepyStore {
         session = storedSessions
             .sorted { $0.scheduledBedtime > $1.scheduledBedtime }
             .first
-        restoreSelection()
+        try restoreSelection()
     }
 
     func finishOnboarding() {
@@ -130,7 +130,7 @@ final class SleepyStore {
         try save()
     }
 
-    func restoreSelection() {
+    func restoreSelection() throws {
         do {
             activitySelection = try ShieldClient.decode(settings.activitySelectionData)
             selectionNeedsRepair = false
@@ -138,7 +138,7 @@ final class SleepyStore {
             activitySelection = FamilyActivitySelection(includeEntireCategory: true)
             settings.activitySelectionData = Data()
             selectionNeedsRepair = true
-            try? save()
+            try save()
         }
     }
 

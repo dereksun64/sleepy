@@ -1,4 +1,5 @@
 import FamilyControls
+import ManagedSettings
 import SwiftData
 import XCTest
 @testable import Sleepy
@@ -22,6 +23,31 @@ final class ShieldClientTests: XCTestCase {
         XCTAssertTrue(client.isActive)
         client.clearShield()
         client.clearShield()
+        XCTAssertFalse(client.isActive)
+    }
+
+    func testNormalClientDoesNotReportSimulatorMockStateAsActive() {
+        let managedStore = makeManagedStore()
+        let client = ShieldClient(store: managedStore)
+
+        client.applyRealShieldIfAvailable()
+
+        XCTAssertFalse(client.isActive)
+    }
+
+    func testUnshieldedApplyClearsStaleNamedStoreSettings() {
+        let managedStore = makeManagedStore()
+        managedStore.shield.applicationCategories = .all()
+        let client = ShieldClient(store: managedStore)
+
+        let result = client.apply(
+            selection: FamilyActivitySelection(includeEntireCategory: true),
+            interval: DateInterval(start: .now, duration: 60)
+        )
+
+        guard case .unshielded = result else {
+            return XCTFail("Expected an unshielded result")
+        }
         XCTAssertFalse(client.isActive)
     }
 
@@ -64,5 +90,13 @@ final class ShieldClientTests: XCTestCase {
             for: UserSettings.self, SleepSession.self, ProgressProfile.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
+    }
+
+    private func makeManagedStore() -> ManagedSettingsStore {
+        let store = ManagedSettingsStore(
+            named: ManagedSettingsStore.Name("test-\(UUID().uuidString)")
+        )
+        store.clearAllSettings()
+        return store
     }
 }
