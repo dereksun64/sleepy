@@ -16,21 +16,23 @@ final class ShieldClientTests: XCTestCase {
         XCTAssertThrowsError(try ShieldClient.decode(Data([0xFF])))
     }
 
-    func testMockApplyAndRepeatedClearAreSafe() throws {
-        let client = ShieldClient(mocked: true)
+    func testNamedStoreIsSourceOfTruthAndRepeatedClearIsSafe() {
+        let managedStore = makeManagedStore()
+        let client = ShieldClient(store: managedStore, stopMonitoring: { _ in })
 
-        client.applyMockShield()
+        managedStore.shield.applicationCategories = .all()
         XCTAssertTrue(client.isActive)
         client.clearShield()
         client.clearShield()
         XCTAssertFalse(client.isActive)
     }
 
-    func testNormalClientDoesNotReportSimulatorMockStateAsActive() {
+    func testSeparateNamedStoreDoesNotReportAnotherStoreAsActive() {
         let managedStore = makeManagedStore()
         let client = ShieldClient(store: managedStore)
+        let otherStore = makeManagedStore()
 
-        client.applyRealShieldIfAvailable()
+        otherStore.shield.applicationCategories = .all()
 
         XCTAssertFalse(client.isActive)
     }

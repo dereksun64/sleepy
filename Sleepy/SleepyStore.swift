@@ -13,6 +13,7 @@ private enum StoreError: LocalizedError {
 @Observable
 final class SleepyStore {
     private var modelContext: ModelContext?
+    private let saveModelContext: (ModelContext) throws -> Void
     private(set) var settings = UserSettings()
     private(set) var profile = ProgressProfile()
     private(set) var session: SleepSession?
@@ -22,6 +23,11 @@ final class SleepyStore {
     private(set) var shieldStatusMessage = "Distracting apps are not being blocked."
     private(set) var activitySelection = FamilyActivitySelection(includeEntireCategory: true)
     private(set) var selectionNeedsRepair = false
+    var isConfigured: Bool { modelContext != nil }
+
+    init(saveModelContext: ((ModelContext) throws -> Void)? = nil) {
+        self.saveModelContext = saveModelContext ?? { try $0.save() }
+    }
 
     var stage: AppStage {
         get {
@@ -93,7 +99,7 @@ final class SleepyStore {
         if storedSettings.isEmpty { modelContext.insert(configuredSettings) }
         if storedProfiles.isEmpty { modelContext.insert(configuredProfile) }
         do {
-            try modelContext.save()
+            try saveModelContext(modelContext)
         } catch {
             modelContext.rollback()
             throw error
@@ -105,6 +111,14 @@ final class SleepyStore {
             .sorted { $0.scheduledBedtime > $1.scheduledBedtime }
             .first
         try restoreSelection()
+    }
+
+    func configureForLaunch(modelContext: ModelContext) {
+        do {
+            try configure(modelContext: modelContext)
+        } catch {
+            recoveryMessage = "Sleepy couldn't load saved data: \(error.localizedDescription)"
+        }
     }
 
     func finishOnboarding() {
@@ -260,6 +274,60 @@ final class SleepyStore {
         try save()
     }
 
+    func activate(
+        notifications: NotificationClient,
+        shield: ShieldClient,
+        at now: Date = .now,
+        calendar: Calendar = .current
+    ) async {
+        do {
+            settings.notificationPermission = await notifications.permissionStatus()
+            settings.screenTimePermission = shield.authorizationStatus
+            var cleared = false
+            if session?.sleepStatus == .active,
+               settings.screenTimePermission != .approved || selectionNeedsRepair {
+                shield.clearShield()
+                cleared = true
+                shieldStatusMessage = "Screen Time access is unavailable, so distracting apps are not being blocked."
+            }
+            if let session, session.sleepStatus == .active, now >= session.scheduledWakeTime {
+                if !cleared { shield.clearShield() }
+                try recover(at: now, calendar: calendar)
+            }
+            try save()
+        } catch {
+            modelContext?.rollback()
+            recoveryMessage = "Sleepy couldn't recover saved data: \(error.localizedDescription)"
+        }
+    }
+
+    func startSleep(
+        shield: ShieldClient,
+        at now: Date = .now,
+        calendar: Calendar = .current
+    ) throws {
+        let current = try ensureSession(at: now, calendar: calendar)
+        let result = shield.apply(
+            selection: activitySelection,
+            interval: DateInterval(start: current.scheduledBedtime, end: current.scheduledWakeTime),
+            calendar: calendar
+        )
+        do {
+            try markSleepActive(at: now, calendar: calendar)
+            switch result {
+            case .shielded where shield.isActive:
+                shieldStatusMessage = "Selected distractions are shielded."
+            case .shielded:
+                shieldStatusMessage = "Screen Time did not apply the selected shields."
+            case .unshielded(let message):
+                shieldStatusMessage = message
+            }
+        } catch {
+            shield.clearShield()
+            throw error
+        }
+    }
+
     func endEarly(at now: Date = .now) throws {
         guard let session else { return }
         session.sleepStatus = .ended
@@ -267,6 +335,28 @@ final class SleepyStore {
         session.actualEndTime = now
         profile.currentStreak = 0
         try save()
+    }
+
+    func endEarly(shield: ShieldClient, at now: Date = .now) throws {
+        shield.clearShield()
+        try endEarly(at: now)
+    }
+
+    func handleNotificationResponse(
+        _ action: NotificationAction,
+        requestIdentifier: String,
+        notifications: NotificationClient
+    ) async {
+        do {
+            try await handleNotificationAction(
+                action,
+                requestIdentifier: requestIdentifier,
+                notifications: notifications
+            )
+        } catch {
+            modelContext?.rollback()
+            recoveryMessage = "Sleepy couldn't save that notification response: \(error.localizedDescription)"
+        }
     }
 
     func recover(at now: Date = .now, calendar: Calendar = .current) throws {
@@ -369,6 +459,6 @@ final class SleepyStore {
 
     private func save() throws {
         guard let modelContext else { throw StoreError.notConfigured }
-        try modelContext.save()
+        try saveModelContext(modelContext)
     }
 }

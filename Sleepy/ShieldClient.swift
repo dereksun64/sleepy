@@ -12,21 +12,25 @@ enum ShieldStartResult: Equatable {
 @Observable
 final class ShieldClient {
     private let store: ManagedSettingsStore
-    private let center: DeviceActivityCenter
-    private let mocked: Bool
-    private var mockIsActive = false
+    private let injectedAuthorizationStatus: (() -> PermissionState)?
+    private let startMonitoring: (DeviceActivityName, DeviceActivitySchedule) throws -> Void
+    private let stopMonitoring: ([DeviceActivityName]) -> Void
 
     init(
         store: ManagedSettingsStore = ManagedSettingsStore(named: ScreenTimeNames.store),
         center: DeviceActivityCenter = DeviceActivityCenter(),
-        mocked: Bool = false
+        authorizationStatus: (() -> PermissionState)? = nil,
+        startMonitoring: ((DeviceActivityName, DeviceActivitySchedule) throws -> Void)? = nil,
+        stopMonitoring: (([DeviceActivityName]) -> Void)? = nil
     ) {
         self.store = store
-        self.center = center
-        self.mocked = mocked
+        injectedAuthorizationStatus = authorizationStatus
+        self.startMonitoring = startMonitoring ?? { try center.startMonitoring($0, during: $1) }
+        self.stopMonitoring = stopMonitoring ?? { center.stopMonitoring($0) }
     }
 
     var authorizationStatus: PermissionState {
+        if let injectedAuthorizationStatus { return injectedAuthorizationStatus() }
         #if targetEnvironment(simulator)
         return .unavailable
         #else
@@ -47,7 +51,6 @@ final class ShieldClient {
     }
 
     var isActive: Bool {
-        if mocked { return mockIsActive }
         return store.shield.applications?.isEmpty == false
             || store.shield.webDomains?.isEmpty == false
             || store.shield.applicationCategories != nil
@@ -116,8 +119,8 @@ final class ShieldClient {
             repeats: false
         )
         do {
-            center.stopMonitoring([ScreenTimeNames.activity])
-            try center.startMonitoring(ScreenTimeNames.activity, during: schedule)
+            stopMonitoring([ScreenTimeNames.activity])
+            try startMonitoring(ScreenTimeNames.activity, schedule)
             return isActive
                 ? .shielded
                 : .unshielded("Screen Time did not apply the selected shields.")
@@ -130,20 +133,7 @@ final class ShieldClient {
     }
 
     func clearShield() {
-        mockIsActive = false
-        guard !mocked else { return }
-        center.stopMonitoring([ScreenTimeNames.activity])
+        stopMonitoring([ScreenTimeNames.activity])
         store.clearAllSettings()
-    }
-
-    func applyRealShieldIfAvailable() {
-        #if targetEnvironment(simulator)
-        mockIsActive = true
-        #endif
-    }
-
-    func applyMockShield() {
-        guard mocked else { return }
-        mockIsActive = true
     }
 }

@@ -1,4 +1,5 @@
 import FamilyControls
+import ManagedSettings
 import SwiftData
 import UserNotifications
 import XCTest
@@ -312,15 +313,181 @@ final class SleepyStoreTests: XCTestCase {
         XCTAssertFalse(try relaunchedStore().settings.hasCompletedOnboarding)
     }
 
+    func testActivationAfterWakeClearsBeforeAwardingAndIsRepeatSafe() async throws {
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try store.markSleepActive(at: now, calendar: calendar)
+        let managedStore = makeManagedStore()
+        managedStore.shield.applicationCategories = .all()
+        var clearCount = 0
+        let shield = ShieldClient(
+            store: managedStore,
+            authorizationStatus: { .approved },
+            stopMonitoring: { _ in
+                clearCount += 1
+                XCTAssertEqual(self.store.session?.sleepStatus, .active)
+            }
+        )
+        let notifications = RecordingNotifications(permission: .approved)
+        let wake = store.session!.scheduledWakeTime
+
+        await store.activate(notifications: notifications.client, shield: shield, at: wake, calendar: calendar)
+        await store.activate(notifications: notifications.client, shield: shield, at: wake, calendar: calendar)
+
+        XCTAssertEqual(clearCount, 1)
+        XCTAssertFalse(shield.isActive)
+        XCTAssertEqual(store.session?.sleepStatus, .completed)
+        XCTAssertEqual(store.profile.xp, 50)
+        XCTAssertTrue(store.session?.sleepRewardGranted == true)
+    }
+
+    func testRevokedScreenTimeClearsActiveShieldWithoutCompletingEarly() async throws {
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try store.markSleepActive(at: now, calendar: calendar)
+        let managedStore = makeManagedStore()
+        managedStore.shield.applicationCategories = .all()
+        let shield = ShieldClient(
+            store: managedStore,
+            authorizationStatus: { .denied },
+            stopMonitoring: { _ in }
+        )
+
+        await store.activate(
+            notifications: RecordingNotifications(permission: .approved).client,
+            shield: shield,
+            at: store.session!.scheduledWakeTime.addingTimeInterval(-1),
+            calendar: calendar
+        )
+
+        XCTAssertFalse(shield.isActive)
+        XCTAssertEqual(store.session?.sleepStatus, .active)
+        XCTAssertEqual(store.settings.screenTimePermission, .denied)
+        XCTAssertEqual(
+            store.shieldStatusMessage,
+            "Screen Time access is unavailable, so distracting apps are not being blocked."
+        )
+    }
+
+    func testStartSleepPersistsVisibleUnshieldedState() throws {
+        let shield = ShieldClient(
+            store: makeManagedStore(),
+            authorizationStatus: { .denied },
+            stopMonitoring: { _ in }
+        )
+
+        try store.startSleep(
+            shield: shield,
+            at: Date(timeIntervalSince1970: 1_752_500_000),
+            calendar: calendar
+        )
+
+        XCTAssertEqual(store.session?.sleepStatus, .active)
+        XCTAssertFalse(shield.isActive)
+        XCTAssertEqual(
+            store.shieldStatusMessage,
+            "Screen Time access is unavailable, so distracting apps are not being blocked."
+        )
+        XCTAssertEqual(try relaunchedStore().session?.sleepStatus, .active)
+    }
+
+    func testStartSleepClearsShieldWhenActivePersistenceFails() throws {
+        var saveCount = 0
+        let failingStore = SleepyStore(saveModelContext: { context in
+            saveCount += 1
+            if saveCount == 3 { throw TestError.persistence }
+            try context.save()
+        })
+        try failingStore.configure(modelContext: context)
+        var clearCount = 0
+        let shield = ShieldClient(
+            store: makeManagedStore(),
+            authorizationStatus: { .denied },
+            stopMonitoring: { _ in clearCount += 1 }
+        )
+
+        XCTAssertThrowsError(
+            try failingStore.startSleep(
+                shield: shield,
+                at: Date(timeIntervalSince1970: 1_752_500_000),
+                calendar: calendar
+            )
+        ) { error in
+            XCTAssertEqual(error as? TestError, .persistence)
+        }
+        XCTAssertEqual(clearCount, 1)
+        XCTAssertFalse(shield.isActive)
+    }
+
+    func testActivationSurfacesPersistenceFailure() async throws {
+        var saveCount = 0
+        let failingStore = SleepyStore(saveModelContext: { context in
+            saveCount += 1
+            if saveCount == 2 { throw TestError.persistence }
+            try context.save()
+        })
+        try failingStore.configure(modelContext: context)
+
+        await failingStore.activate(
+            notifications: RecordingNotifications(permission: .approved).client,
+            shield: ShieldClient(store: makeManagedStore()),
+            at: .now,
+            calendar: calendar
+        )
+
+        XCTAssertTrue(failingStore.recoveryMessage?.contains("couldn't recover saved data") == true)
+    }
+
+    func testEndEarlyAlwaysClearsFirstAndNeverAwardsSleep() throws {
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try store.markSleepActive(at: now, calendar: calendar)
+        var clearCount = 0
+        let shield = ShieldClient(
+            store: makeManagedStore(),
+            stopMonitoring: { _ in
+                clearCount += 1
+                if clearCount == 1 {
+                    XCTAssertEqual(self.store.session?.sleepStatus, .active)
+                }
+            }
+        )
+
+        try store.endEarly(shield: shield, at: now)
+        try store.endEarly(shield: shield, at: now)
+
+        XCTAssertEqual(clearCount, 2)
+        XCTAssertEqual(store.session?.sleepStatus, .ended)
+        XCTAssertFalse(store.session?.sleepRewardGranted == true)
+        XCTAssertEqual(store.profile.currentStreak, 0)
+    }
+
+    func testDecodeRepairPreservesProgressAndSurfacesRepair() throws {
+        store.profile.xp = 42
+        store.profile.coins = 7
+        store.settings.activitySelectionData = Data([0xFF])
+        try context.save()
+
+        let relaunched = try relaunchedStore()
+
+        XCTAssertEqual(relaunched.profile.xp, 42)
+        XCTAssertEqual(relaunched.profile.coins, 7)
+        XCTAssertTrue(relaunched.selectionNeedsRepair)
+        XCTAssertTrue(relaunched.settings.activitySelectionData.isEmpty)
+    }
+
     private func relaunchedStore() throws -> SleepyStore {
         let relaunched = SleepyStore()
         try relaunched.configure(modelContext: context)
         return relaunched
     }
+
+    private func makeManagedStore() -> ManagedSettingsStore {
+        let store = ManagedSettingsStore(named: .init("store-test-\(UUID().uuidString)"))
+        store.clearAllSettings()
+        return store
+    }
 }
 
-private enum TestError: Error {
-    case scheduling
+private enum TestError: Error, Equatable {
+    case scheduling, persistence
 }
 
 @MainActor
@@ -332,10 +499,16 @@ private final class RecordingNotifications {
     var persistedWakeTimeAtScheduling: Date?
     let context: ModelContext?
     let addError: Error?
+    let permission: PermissionState
 
-    init(context: ModelContext? = nil, addError: Error? = nil) {
+    init(
+        context: ModelContext? = nil,
+        addError: Error? = nil,
+        permission: PermissionState = .unknown
+    ) {
         self.context = context
         self.addError = addError
+        self.permission = permission
     }
 
     var client: NotificationClient {
@@ -351,7 +524,8 @@ private final class RecordingNotifications {
                     self.persistedWakeTimeAtScheduling = settings?.wakeTime
                 }
             },
-            removeRequests: { self.removedIdentifiers.append($0) }
+            removeRequests: { self.removedIdentifiers.append($0) },
+            permissionStatus: { self.permission }
         )
     }
 

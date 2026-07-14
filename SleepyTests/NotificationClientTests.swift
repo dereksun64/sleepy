@@ -2,6 +2,7 @@ import UserNotifications
 import XCTest
 @testable import Sleepy
 
+@MainActor
 final class NotificationClientTests: XCTestCase {
     func testStableIdentifiers() {
         XCTAssertEqual(NotificationID.category, "bedtime.actions")
@@ -96,6 +97,35 @@ final class NotificationClientTests: XCTestCase {
                 from: calendar.date(byAdding: .minute, value: 5, to: now)!
             )
         )
+    }
+
+    func testDelegateBuffersKnownActionWithSourceRequestIdentifier() {
+        let delegate = AppDelegate()
+        var received: [(NotificationAction, String)] = []
+
+        delegate.forwardResponse(
+            actionIdentifier: NotificationAction.snooze.rawValue,
+            requestIdentifier: NotificationID.snooze(2)
+        )
+        delegate.installResponseHandler { received.append(($0, $1)) }
+
+        XCTAssertEqual(received.map(\.0), [.snooze])
+        XCTAssertEqual(received.map(\.1), [NotificationID.snooze(2)])
+    }
+
+    func testDelegateForwardsOnlyKnownActionsAfterInstallation() {
+        let delegate = AppDelegate()
+        var received: [(NotificationAction, String)] = []
+        delegate.installResponseHandler { received.append(($0, $1)) }
+
+        delegate.forwardResponse(actionIdentifier: UNNotificationDefaultActionIdentifier, requestIdentifier: "ignored")
+        delegate.forwardResponse(
+            actionIdentifier: NotificationAction.startingNow.rawValue,
+            requestIdentifier: NotificationID.prompt
+        )
+
+        XCTAssertEqual(received.map(\.0), [.startingNow])
+        XCTAssertEqual(received.map(\.1), [NotificationID.prompt])
     }
 
     private var singaporeCalendar: Calendar {

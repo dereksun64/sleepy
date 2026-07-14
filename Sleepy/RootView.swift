@@ -88,8 +88,12 @@ struct RootView: View {
             Text("Selected distracting apps will be shielded until wake time.")
                 .multilineTextAlignment(.center)
             Button("Start Sleep Sanctuary") {
-                shield.applyRealShieldIfAvailable()
-                store.startSleep()
+                do {
+                    try store.startSleep(shield: shield)
+                } catch {
+                    scheduleErrorMessage = error.localizedDescription
+                    isShowingScheduleError = true
+                }
             }
             .buttonStyle(.borderedProminent)
         }
@@ -100,8 +104,12 @@ struct RootView: View {
             Text("Sleep Sanctuary is active").font(.title)
             Text(shield.isActive ? "Shield active" : "Shield inactive")
             Button("End early") {
-                shield.clearShield()
-                store.endSleep(endedEarly: true)
+                do {
+                    try store.endEarly(shield: shield)
+                } catch {
+                    scheduleErrorMessage = error.localizedDescription
+                    isShowingScheduleError = true
+                }
             }
         }
     }

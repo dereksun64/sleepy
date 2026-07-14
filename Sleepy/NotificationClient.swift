@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import UserNotifications
 
 enum NotificationID {
@@ -30,17 +31,20 @@ final class NotificationClient {
     private let addRequest: (UNNotificationRequest) async throws -> Void
     private let removeRequests: ([String]) -> Void
     private let setCategories: (Set<UNNotificationCategory>) -> Void
+    private let injectedPermissionStatus: (() async -> PermissionState)?
 
     init(
         center: UNUserNotificationCenter = .current(),
         addRequest: ((UNNotificationRequest) async throws -> Void)? = nil,
         removeRequests: (([String]) -> Void)? = nil,
-        setCategories: ((Set<UNNotificationCategory>) -> Void)? = nil
+        setCategories: ((Set<UNNotificationCategory>) -> Void)? = nil,
+        permissionStatus: (() async -> PermissionState)? = nil
     ) {
         self.center = center
         self.addRequest = addRequest ?? { try await center.add($0) }
         self.removeRequests = removeRequests ?? { center.removePendingNotificationRequests(withIdentifiers: $0) }
         self.setCategories = setCategories ?? { center.setNotificationCategories($0) }
+        injectedPermissionStatus = permissionStatus
     }
 
     func requestPermission() async -> PermissionState {
@@ -53,7 +57,8 @@ final class NotificationClient {
     }
 
     func permissionStatus() async -> PermissionState {
-        Self.permissionState(for: await center.notificationSettings().authorizationStatus)
+        if let injectedPermissionStatus { return await injectedPermissionStatus() }
+        return Self.permissionState(for: await center.notificationSettings().authorizationStatus)
     }
 
     func registerCategories() {
@@ -124,5 +129,48 @@ final class NotificationClient {
         let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         return UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+    }
+}
+
+@MainActor
+final class AppDelegate: NSObject, UIApplicationDelegate, @preconcurrency UNUserNotificationCenterDelegate {
+    private var responseHandler: ((NotificationAction, String) -> Void)?
+    private var pendingResponse: (NotificationAction, String)?
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        defer { completionHandler() }
+        forwardResponse(
+            actionIdentifier: response.actionIdentifier,
+            requestIdentifier: response.notification.request.identifier
+        )
+    }
+
+    func forwardResponse(actionIdentifier: String, requestIdentifier: String) {
+        guard let action = NotificationAction(rawValue: actionIdentifier) else { return }
+        if let responseHandler {
+            responseHandler(action, requestIdentifier)
+        } else {
+            pendingResponse = (action, requestIdentifier)
+        }
+    }
+
+    func installResponseHandler(_ handler: @escaping (NotificationAction, String) -> Void) {
+        responseHandler = handler
+        if let pendingResponse {
+            self.pendingResponse = nil
+            handler(pendingResponse.0, pendingResponse.1)
+        }
     }
 }
