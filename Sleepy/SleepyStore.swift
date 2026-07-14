@@ -1,4 +1,5 @@
 import Foundation
+import FamilyControls
 import Observation
 import SwiftData
 
@@ -19,6 +20,8 @@ final class SleepyStore {
     private var isShowingHome = false
     private(set) var recoveryMessage: String?
     private(set) var shieldStatusMessage = "Distracting apps are not being blocked."
+    private(set) var activitySelection = FamilyActivitySelection(includeEntireCategory: true)
+    private(set) var selectionNeedsRepair = false
 
     var stage: AppStage {
         get {
@@ -101,6 +104,7 @@ final class SleepyStore {
         session = storedSessions
             .sorted { $0.scheduledBedtime > $1.scheduledBedtime }
             .first
+        restoreSelection()
     }
 
     func finishOnboarding() {
@@ -123,6 +127,25 @@ final class SleepyStore {
     func updateSettings(targetBedtime: Date, wakeTime: Date) throws {
         settings.targetBedtime = targetBedtime
         settings.wakeTime = wakeTime
+        try save()
+    }
+
+    func restoreSelection() {
+        do {
+            activitySelection = try ShieldClient.decode(settings.activitySelectionData)
+            selectionNeedsRepair = false
+        } catch {
+            activitySelection = FamilyActivitySelection(includeEntireCategory: true)
+            settings.activitySelectionData = Data()
+            selectionNeedsRepair = true
+            try? save()
+        }
+    }
+
+    func saveSelection(_ selection: FamilyActivitySelection) throws {
+        settings.activitySelectionData = try ShieldClient.encode(selection)
+        activitySelection = selection
+        selectionNeedsRepair = false
         try save()
     }
 
