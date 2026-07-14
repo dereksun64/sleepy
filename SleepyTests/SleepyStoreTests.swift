@@ -26,6 +26,52 @@ final class SleepyStoreTests: XCTestCase {
         calendar.timeZone = TimeZone(identifier: "Asia/Singapore")!
     }
 
+    func testHomeReadinessUsesExactLimitedAndReadyCopy() {
+        XCTAssertEqual(
+            HomeReadiness.message(
+                notification: .approved,
+                screenTime: .approved,
+                hasSelection: true
+            ),
+            "Ready for bedtime"
+        )
+        XCTAssertEqual(
+            HomeReadiness.message(
+                notification: .denied,
+                screenTime: .approved,
+                hasSelection: true
+            ),
+            "Scheduled; reminders are inactive"
+        )
+        XCTAssertEqual(
+            HomeReadiness.message(
+                notification: .approved,
+                screenTime: .unavailable,
+                hasSelection: true
+            ),
+            "Scheduled; app blocking is unavailable"
+        )
+        XCTAssertEqual(
+            HomeReadiness.message(
+                notification: .approved,
+                screenTime: .approved,
+                hasSelection: false
+            ),
+            "Scheduled; choose distracting apps to enable blocking"
+        )
+    }
+
+    func testSelectionSummaryCountsAllThreeTokenKinds() {
+        XCTAssertEqual(
+            ActivitySelectionSummary.text(applications: 0, categories: 0, websites: 0),
+            "No apps selected"
+        )
+        XCTAssertEqual(
+            ActivitySelectionSummary.text(applications: 2, categories: 3, websites: 4),
+            "2 apps, 3 categories, 4 websites selected"
+        )
+    }
+
     func testBrushingRewardIsIdempotent() throws {
         let now = Date(timeIntervalSince1970: 1_752_500_000)
         try store.beginBrushing(at: now, calendar: calendar)
