@@ -18,7 +18,7 @@ final class SleepyStoreTests: XCTestCase {
         )
         context = ModelContext(container)
         store = SleepyStore()
-        store.configure(modelContext: context)
+        try store.configure(modelContext: context)
         store.finishOnboarding()
         calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Singapore")!
@@ -35,6 +35,22 @@ final class SleepyStoreTests: XCTestCase {
         XCTAssertEqual(store.routineProgress, 0.5)
     }
 
+    func testThrowingActionRequiresConfiguration() {
+        let unconfigured = SleepyStore()
+
+        XCTAssertThrowsError(try unconfigured.beginBrushing())
+        XCTAssertNil(unconfigured.session)
+    }
+
+    func testCompatibilityActionReportsConfigurationFailureWithoutAdvancing() {
+        let unconfigured = SleepyStore()
+
+        unconfigured.finishOnboarding()
+
+        XCTAssertEqual(unconfigured.stage, .onboarding)
+        XCTAssertNotNil(unconfigured.recoveryMessage)
+    }
+
     func testSnoozeCountPersistsAndStopsAtThree() throws {
         let now = Date(timeIntervalSince1970: 1_752_500_000)
         XCTAssertTrue(try store.recordSnooze(at: now, calendar: calendar))
@@ -43,7 +59,7 @@ final class SleepyStoreTests: XCTestCase {
         XCTAssertFalse(try store.recordSnooze(at: now, calendar: calendar))
 
         let relaunched = SleepyStore()
-        relaunched.configure(modelContext: ModelContext(container))
+        try relaunched.configure(modelContext: ModelContext(container))
         XCTAssertEqual(relaunched.session?.snoozeCount, 3)
     }
 

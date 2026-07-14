@@ -2,6 +2,12 @@ import Foundation
 import Observation
 import SwiftData
 
+private enum StoreError: LocalizedError {
+    case notConfigured
+
+    var errorDescription: String? { "Sleepy storage is not configured." }
+}
+
 @MainActor
 @Observable
 final class SleepyStore {
@@ -39,7 +45,6 @@ final class SleepyStore {
         set {
             isShowingSettings = newValue == .settings
             isShowingHome = newValue == .home
-            try? save()
         }
     }
 
@@ -52,16 +57,20 @@ final class SleepyStore {
     var bedtime: Date {
         get { settings.targetBedtime }
         set {
-            settings.targetBedtime = newValue
-            try? save()
+            attempt {
+                settings.targetBedtime = newValue
+                try save()
+            }
         }
     }
 
     var wakeTime: Date {
         get { settings.wakeTime }
         set {
-            settings.wakeTime = newValue
-            try? save()
+            attempt {
+                settings.wakeTime = newValue
+                try save()
+            }
         }
     }
 
@@ -72,31 +81,43 @@ final class SleepyStore {
     var coins: Int { profile.coins }
     var streak: Int { profile.currentStreak }
 
-    func configure(modelContext: ModelContext) {
+    func configure(modelContext: ModelContext) throws {
+        let storedSettings = try fetch(UserSettings.self, from: modelContext)
+        let storedProfiles = try fetch(ProgressProfile.self, from: modelContext)
+        let storedSessions = try fetch(SleepSession.self, from: modelContext)
+        let configuredSettings = storedSettings.first ?? UserSettings()
+        let configuredProfile = storedProfiles.first ?? ProgressProfile()
+        if storedSettings.isEmpty { modelContext.insert(configuredSettings) }
+        if storedProfiles.isEmpty { modelContext.insert(configuredProfile) }
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
         self.modelContext = modelContext
-        settings = fetch(UserSettings.self).first ?? insert(UserSettings())
-        profile = fetch(ProgressProfile.self).first ?? insert(ProgressProfile())
-        session = fetch(SleepSession.self)
+        settings = configuredSettings
+        profile = configuredProfile
+        session = storedSessions
             .sorted { $0.scheduledBedtime > $1.scheduledBedtime }
             .first
-        try? modelContext.save()
     }
 
     func finishOnboarding() {
-        settings.hasCompletedOnboarding = true
-        try? save()
+        attempt {
+            settings.hasCompletedOnboarding = true
+            try save()
+        }
     }
 
     func showSettings() {
         isShowingSettings = true
         isShowingHome = false
-        try? save()
     }
 
     func showHome() {
         isShowingSettings = false
         isShowingHome = true
-        try? save()
     }
 
     func updateSettings(targetBedtime: Date, wakeTime: Date) throws {
@@ -165,30 +186,30 @@ final class SleepyStore {
     }
 
     func snooze() -> Bool {
-        (try? recordSnooze()) ?? false
+        attempt { try recordSnooze() } ?? false
     }
 
     func startBrushing() {
-        try? beginBrushing()
+        attempt { try beginBrushing() }
     }
 
     func doneBrushing() {
-        try? finishBrushing()
+        attempt { try finishBrushing() }
     }
 
     func skipBrushing() {
-        try? skipBrushing(at: .now, calendar: .current)
+        attempt { try skipBrushing(at: .now, calendar: .current) }
     }
 
     func startSleep() {
-        try? markSleepActive()
+        attempt { try markSleepActive() }
     }
 
     func endSleep(endedEarly: Bool) {
         if endedEarly {
-            try? endEarly()
+            attempt { try endEarly() }
         } else if let session {
-            try? recover(at: session.scheduledWakeTime)
+            attempt { try recover(at: session.scheduledWakeTime) }
         }
     }
 
@@ -197,6 +218,7 @@ final class SleepyStore {
     }
 
     private func ensureSession(at now: Date, calendar: Calendar) throws -> SleepSession {
+        guard let modelContext else { throw StoreError.notConfigured }
         isShowingHome = false
         let interval = SleepSchedule.currentOrNext(
             at: now,
@@ -210,7 +232,8 @@ final class SleepyStore {
         if session?.sleepStatus == .active {
             recoveryMessage = "A stale Sleep Sanctuary was cleared before starting tonight."
         }
-        let replacement = insert(SleepSession(interval: interval))
+        let replacement = SleepSession(interval: interval)
+        modelContext.insert(replacement)
         session = replacement
         try save()
         return replacement
@@ -229,17 +252,31 @@ final class SleepyStore {
         session.sleepRewardGranted = true
     }
 
-    private func fetch<T: PersistentModel>(_ type: T.Type) -> [T] {
-        (try? modelContext?.fetch(FetchDescriptor<T>())) ?? []
+    private func fetch<T: PersistentModel>(_ type: T.Type, from modelContext: ModelContext) throws -> [T] {
+        try modelContext.fetch(FetchDescriptor<T>())
     }
 
     @discardableResult
-    private func insert<T: PersistentModel>(_ value: T) -> T {
-        modelContext?.insert(value)
-        return value
+    private func attempt<T>(_ operation: () throws -> T) -> T? {
+        guard modelContext != nil else {
+            recoveryMessage = StoreError.notConfigured.localizedDescription
+            return nil
+        }
+        let previousSession = session
+        let previousIsShowingHome = isShowingHome
+        do {
+            return try operation()
+        } catch {
+            modelContext?.rollback()
+            session = previousSession
+            isShowingHome = previousIsShowingHome
+            recoveryMessage = "Sleepy couldn't save that change. Please try again."
+            return nil
+        }
     }
 
     private func save() throws {
-        try modelContext?.save()
+        guard let modelContext else { throw StoreError.notConfigured }
+        try modelContext.save()
     }
 }
