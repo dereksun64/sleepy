@@ -6,7 +6,7 @@ Iteration 0002 remains incomplete until every acceptance criterion and the requi
 
 - [x] The app builds and all automated tests pass. Evidence: the standard full suite executed 50 tests with 0 failures, and both required builds ended with `BUILD SUCCEEDED` on 2026-07-14.
 - [ ] The complete bedtime loop works after terminating and relaunching the app.
-- [x] Settings, selection, session, snooze count, and progress persist. Evidence: the full suite passed direct persistence/relaunch coverage including schedule updates, selection persistence, session recovery, snooze persistence, and nightly progress rollover.
+- [ ] Settings, selection, session, snooze count, and progress persist. Automated tests cover schedule-setting updates, selection persistence, session recovery, snooze persistence, and progress-state rollover; progress persistence after actually terminating and relaunching the app remains pending interactive verification.
 - [ ] Real selected targets are shielded on a physical iPhone.
 - [ ] End early reliably removes those shields.
 - [ ] After wake time, shields are removed on the system's first outside-interval device-use callback without requiring the main app to run.
