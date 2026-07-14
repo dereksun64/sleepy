@@ -114,6 +114,22 @@ final class SleepyStore {
         }
     }
 
+    func finishOnboarding(
+        notifications: NotificationClient,
+        at now: Date = .now,
+        calendar: Calendar = .current
+    ) async throws {
+        try await updateSchedule(
+            bedtime: settings.targetBedtime,
+            wakeTime: settings.wakeTime,
+            notifications: notifications,
+            at: now,
+            calendar: calendar
+        )
+        settings.hasCompletedOnboarding = true
+        try save()
+    }
+
     func showSettings() {
         isShowingSettings = true
         isShowingHome = false
@@ -205,6 +221,7 @@ final class SleepyStore {
 
     func handleNotificationAction(
         _ action: NotificationAction,
+        requestIdentifier: String,
         notifications: NotificationClient,
         at now: Date = .now,
         calendar: Calendar = .current
@@ -213,6 +230,15 @@ final class SleepyStore {
         case .startingNow:
             try beginBrushing(at: now, calendar: calendar)
         case .snooze:
+            guard let sourceCount = NotificationID.snoozeCount(for: requestIdentifier) else {
+                notifications.cancelNoResponseFollowUp()
+                return
+            }
+            let current = try ensureSession(at: now, calendar: calendar)
+            guard current.snoozeCount == sourceCount, current.brushingStatus == .notStarted else {
+                notifications.cancelNoResponseFollowUp()
+                return
+            }
             let shouldSchedule = try recordSnooze(at: now, calendar: calendar)
             notifications.cancelNoResponseFollowUp()
             if shouldSchedule, let count = session?.snoozeCount {

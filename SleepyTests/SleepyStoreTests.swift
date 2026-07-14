@@ -142,7 +142,13 @@ final class SleepyStoreTests: XCTestCase {
         let notifications = RecordingNotifications()
         let now = Date(timeIntervalSince1970: 1_752_500_000)
 
-        try await store.handleNotificationAction(.startingNow, notifications: notifications.client, at: now, calendar: calendar)
+        try await store.handleNotificationAction(
+            .startingNow,
+            requestIdentifier: NotificationID.prompt,
+            notifications: notifications.client,
+            at: now,
+            calendar: calendar
+        )
 
         let relaunched = try relaunchedStore()
         XCTAssertEqual(relaunched.session?.brushingStatus, .started)
@@ -154,7 +160,13 @@ final class SleepyStoreTests: XCTestCase {
         let notifications = RecordingNotifications()
         let now = Date(timeIntervalSince1970: 1_752_500_000)
 
-        try await store.handleNotificationAction(.alreadyDone, notifications: notifications.client, at: now, calendar: calendar)
+        try await store.handleNotificationAction(
+            .alreadyDone,
+            requestIdentifier: NotificationID.prompt,
+            notifications: notifications.client,
+            at: now,
+            calendar: calendar
+        )
 
         let relaunched = try relaunchedStore()
         XCTAssertEqual(relaunched.session?.brushingStatus, .done)
@@ -169,7 +181,13 @@ final class SleepyStoreTests: XCTestCase {
         let notifications = RecordingNotifications()
         let now = Date(timeIntervalSince1970: 1_752_500_000)
 
-        try await store.handleNotificationAction(.skipTonight, notifications: notifications.client, at: now, calendar: calendar)
+        try await store.handleNotificationAction(
+            .skipTonight,
+            requestIdentifier: NotificationID.prompt,
+            notifications: notifications.client,
+            at: now,
+            calendar: calendar
+        )
 
         let relaunched = try relaunchedStore()
         XCTAssertEqual(relaunched.session?.brushingStatus, .skipped)
@@ -184,8 +202,15 @@ final class SleepyStoreTests: XCTestCase {
         let notifications = RecordingNotifications(context: context)
         let now = Date(timeIntervalSince1970: 1_752_500_000)
 
-        for _ in 0..<4 {
-            try await store.handleNotificationAction(.snooze, notifications: notifications.client, at: now, calendar: calendar)
+        let requestIdentifiers = [NotificationID.prompt] + (1...3).map(NotificationID.snooze)
+        for requestIdentifier in requestIdentifiers {
+            try await store.handleNotificationAction(
+                .snooze,
+                requestIdentifier: requestIdentifier,
+                notifications: notifications.client,
+                at: now,
+                calendar: calendar
+            )
         }
 
         let relaunched = try relaunchedStore()
@@ -196,12 +221,42 @@ final class SleepyStoreTests: XCTestCase {
         XCTAssertEqual(notifications.cancelCount, 4)
     }
 
+    func testDuplicateSnoozeCallbackAfterRelaunchIsIgnored() async throws {
+        let notifications = RecordingNotifications()
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+        try await store.handleNotificationAction(
+            .snooze,
+            requestIdentifier: NotificationID.prompt,
+            notifications: notifications.client,
+            at: now,
+            calendar: calendar
+        )
+
+        let relaunched = try relaunchedStore()
+        try await relaunched.handleNotificationAction(
+            .snooze,
+            requestIdentifier: NotificationID.prompt,
+            notifications: notifications.client,
+            at: now,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(try relaunchedStore().session?.snoozeCount, 1)
+        XCTAssertEqual(notifications.scheduledSnoozeCounts, [1])
+    }
+
     func testSchedulingFailureIsThrownAfterSnoozePersists() async throws {
         let notifications = RecordingNotifications(addError: TestError.scheduling)
         let now = Date(timeIntervalSince1970: 1_752_500_000)
 
         do {
-            try await store.handleNotificationAction(.snooze, notifications: notifications.client, at: now, calendar: calendar)
+            try await store.handleNotificationAction(
+                .snooze,
+                requestIdentifier: NotificationID.prompt,
+                notifications: notifications.client,
+                at: now,
+                calendar: calendar
+            )
             XCTFail("Expected scheduling to fail")
         } catch TestError.scheduling {
         }
@@ -228,6 +283,33 @@ final class SleepyStoreTests: XCTestCase {
         XCTAssertEqual(relaunched.settings.targetBedtime, bedtime)
         XCTAssertEqual(relaunched.settings.wakeTime, wakeTime)
         XCTAssertEqual(notifications.removedIdentifiers, [NotificationID.all])
+    }
+
+    func testOnboardingFinishesOnlyAfterNotificationsAreScheduled() async throws {
+        store.settings.hasCompletedOnboarding = false
+        try context.save()
+        let notifications = RecordingNotifications()
+        let now = Date(timeIntervalSince1970: 1_752_500_000)
+
+        try await store.finishOnboarding(notifications: notifications.client, at: now, calendar: calendar)
+
+        XCTAssertTrue(try relaunchedStore().settings.hasCompletedOnboarding)
+        XCTAssertEqual(notifications.removedIdentifiers, [NotificationID.all])
+        XCTAssertEqual(notifications.requests.map(\.identifier), [NotificationID.prompt, NotificationID.noResponse])
+    }
+
+    func testOnboardingSchedulingFailureIsThrownWithoutFinishing() async throws {
+        store.settings.hasCompletedOnboarding = false
+        try context.save()
+        let notifications = RecordingNotifications(addError: TestError.scheduling)
+
+        do {
+            try await store.finishOnboarding(notifications: notifications.client, at: .now, calendar: calendar)
+            XCTFail("Expected scheduling to fail")
+        } catch TestError.scheduling {
+        }
+
+        XCTAssertFalse(try relaunchedStore().settings.hasCompletedOnboarding)
     }
 
     private func relaunchedStore() throws -> SleepyStore {

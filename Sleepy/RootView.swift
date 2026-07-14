@@ -3,6 +3,8 @@ import SwiftUI
 struct RootView: View {
     @Environment(SleepyStore.self) private var store
     @Environment(ShieldClient.self) private var shield
+    @State private var isShowingScheduleError = false
+    @State private var scheduleErrorMessage = ""
     let notifications: NotificationClient
 
     var body: some View {
@@ -27,6 +29,11 @@ struct RootView: View {
             }
             .padding()
         }
+        .alert("Couldn't schedule reminders", isPresented: $isShowingScheduleError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(scheduleErrorMessage)
+        }
     }
 
     private var onboarding: some View {
@@ -39,7 +46,7 @@ struct RootView: View {
             }
             Text("Shield selection uses mock mode in Simulator.")
             Button("Finish setup") {
-                store.finishOnboarding()
+                Task { await saveSchedule(finishingOnboarding: true) }
             }
             .buttonStyle(.borderedProminent)
         }
@@ -115,7 +122,9 @@ struct RootView: View {
         VStack(spacing: 16) {
             DatePicker("Bedtime", selection: Bindable(store).bedtime, displayedComponents: .hourAndMinute)
             DatePicker("Wake time", selection: Bindable(store).wakeTime, displayedComponents: .hourAndMinute)
-            Button("Done") { store.stage = .home }
+            Button("Done") {
+                Task { await saveSchedule(finishingOnboarding: false) }
+            }
         }
     }
 
@@ -147,6 +156,24 @@ struct RootView: View {
             store.stage = .startSleep
         } else {
             store.startBrushing()
+        }
+    }
+
+    private func saveSchedule(finishingOnboarding: Bool) async {
+        do {
+            if finishingOnboarding {
+                try await store.finishOnboarding(notifications: notifications)
+            } else {
+                try await store.updateSchedule(
+                    bedtime: store.bedtime,
+                    wakeTime: store.wakeTime,
+                    notifications: notifications
+                )
+                store.showHome()
+            }
+        } catch {
+            scheduleErrorMessage = error.localizedDescription
+            isShowingScheduleError = true
         }
     }
 

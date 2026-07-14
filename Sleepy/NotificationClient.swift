@@ -7,6 +7,15 @@ enum NotificationID {
     static let noResponse = "bedtime.no-response"
     static func snooze(_ count: Int) -> String { "bedtime.snooze.\(count)" }
     static let all = [prompt, noResponse] + (1...3).map(snooze)
+
+    static func snoozeCount(for requestIdentifier: String) -> Int? {
+        if requestIdentifier == prompt { return 0 }
+        let prefix = "bedtime.snooze."
+        guard requestIdentifier.hasPrefix(prefix),
+              let count = Int(requestIdentifier.dropFirst(prefix.count)),
+              (1...3).contains(count) else { return nil }
+        return count
+    }
 }
 
 enum NotificationAction: String, CaseIterable {
